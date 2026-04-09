@@ -16,21 +16,32 @@ import { Link } from 'expo-router';
 
 export default function HomeScreen() {
   
-  const [email, setEmail] = useState('');
+  const [actualPassword, setactualPassword] = useState('');
+  const [newPassword, setnewPassword] = useState('');
+  const [confirmPassword, setconfirmPassword] = useState('');
   
   return (
     <View style={styles.container}>
-      <Text style={styles.titleContainer}>¿Olvidaste tu contraseña?</Text>
+      <Text style={styles.titleContainer}>Cambiar contraseña</Text>
 
       <TextInput
         style={styles.input}
-        placeholder="Email"
-        value={email}
-        onChangeText={setEmail}
+        placeholder="Contraseña Actual"
+        value={actualPassword}
+        onChangeText={setactualPassword}
       />
-
-    <Text style={styles.text}>*Le enviaremos un mensaje para que restablezca su contraseña</Text>
-
+      <TextInput
+        style={styles.input}
+        placeholder="Nueva contraseña"
+        value={newPassword}
+        onChangeText={setnewPassword}
+      />
+      <TextInput
+        style={styles.input}
+        placeholder="Confirmar contraseña"
+        value={confirmPassword}
+        onChangeText={setconfirmPassword}
+      />
 
       <Pressable style={styles.button} onPress={null}>
         <Text style={styles.textButton}>Confirmar</Text>
