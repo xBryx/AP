@@ -28,7 +28,7 @@ function RootNavigator() {
       {user ? ( //Existe el usuario (Login guardado)
         <Stack.Screen name="(tabs)" />
       ) : ( //No está logeado
-        <Stack.Screen name="login" />
+        <Stack.Screen name='(auth)/login' />
       )}
     </Stack>
   );
