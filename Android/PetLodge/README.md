@@ -16,6 +16,29 @@ This is an [Expo](https://expo.dev) project created with [`create-expo-app`](htt
    npx expo start
    ```
 
+## Supabase setup (Expo + frontend only)
+
+This project can connect directly to Supabase from the app without a dedicated backend.
+
+1. Create a `.env` file in the project root.
+
+2. Fill these variables in `.env`:
+
+   - `EXPO_PUBLIC_SUPABASE_URL`
+   - `EXPO_PUBLIC_SUPABASE_ANON_KEY`
+
+3. Use the shared client from `lib/supabase.ts`:
+
+   ```ts
+   import { supabase } from '@/lib/supabase';
+   ```
+
+Notes:
+
+- Use only the anon key in the frontend.
+- Never put the service_role key in the app.
+- Protect data with RLS policies in Supabase.
+
 In the output, you'll find options to open the app in a
 
 - [development build](https://docs.expo.dev/develop/development-builds/introduction/)
