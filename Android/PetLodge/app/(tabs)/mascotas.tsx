@@ -11,27 +11,49 @@ import { Picker } from "@react-native-picker/picker";
 import { Switch } from "react-native";
 import { useEffect, useState } from "react";
 import { FlatList } from "react-native";
-
-const [mascotas, setMascotas] = useState([
-  {
-    id: 1,
-    nombre: "Max",
-    tipo: "Perro",
-    raza: "Labrador",
-    edad: "3 años",
-    vacunas: true,
-    condicionesMedicas: "Ninguna",
-    veterinario: "Dr. Pérez",
-    numeroVeterinario: "8888-8888",
-    notas: "Muy juguetón",
-  },
-]);
+import { ScrollView } from "react-native";
+import { Background } from "@react-navigation/elements";
+import { useRouter } from "expo-router";
 
 export default function HomeScreen() {
+  const [mascotas, setMascotas] = useState([
+    {
+      id: 1,
+      nombre: "Max",
+      tipo: "Perro",
+      raza: "Labrador",
+      edad: "3 años",
+      vacunas: true,
+      condicionesMedicas: "Ninguna",
+      veterinario: "Dr. Pérez",
+      numeroVeterinario: "8888-8888",
+      notas: "Muy juguetón",
+    },
+    {
+      id: 2,
+      nombre: "juan",
+      tipo: "Perro",
+      raza: "Labrador",
+      edad: "3 años",
+      vacunas: true,
+      condicionesMedicas: "Ninguna",
+      veterinario: "Dr. Pérez",
+      numeroVeterinario: "8888-8888",
+      notas: "Muy juguetón",
+    },
+  ]);
+  const especies = [
+    { label: "Perro", value: "perro" },
+    { label: "Gato", value: "gato" },
+    { label: "Ave", value: "ave" },
+    { label: "Conejo", value: "conejo" },
+  ];
+  const router = useRouter();
   const [activeTab, setActiveTab] = useState("misMascotas");
   //To do
   const handleEdit = (mascota) => {
-    console.log("Editar:", mascota.nombre);
+    
+    router.push("/mascota_edit")
   };
 
   const handleReserve = (mascota) => {
@@ -43,7 +65,7 @@ export default function HomeScreen() {
     console.log("Eliminar:", mascota.nombre);
   };
   const [nombre, setNombre] = useState("");
-const [especie, setEspecie] = useState("");
+
   const [raza, setRaza] = useState("");
   const [edad, setEdad] = useState("");
   const [sexo, setSexo] = useState("");
@@ -54,7 +76,10 @@ const [especie, setEspecie] = useState("");
   const [nota, setNota] = useState("");
 
   return (
-    <View style={styles.container}>
+      <ScrollView
+      style={{ backgroundColor: "#FFFF" }}
+        contentContainerStyle={{ justifyContent: "center" }}
+      >
       {/* Switch del encabezado */}
       <View style={styles.tabContainer}>
         <Pressable
@@ -136,9 +161,19 @@ const [especie, setEspecie] = useState("");
             onChangeText={setNombre}
           />
           <Picker
-  selectedValue={especie}
-  onValueChange={(itemValue) => setEspecie(itemValue)}
-></Picker>
+            selectedValue={especies}
+            onValueChange={(itemValue) => itemValue}
+          >
+            <Picker.Item label="Seleccione especie" value="" />
+
+            {especies.map((item) => (
+              <Picker.Item
+                key={item.value}
+                label={item.label}
+                value={item.value}
+              />
+            ))}
+          </Picker>
           <TextInput
             style={styles.input}
             placeholder="Raza"
@@ -209,7 +244,7 @@ const [especie, setEspecie] = useState("");
           />
         </View>
       )}
-    </View>
+    </ScrollView>
   );
 }
 
@@ -287,36 +322,36 @@ const styles = StyleSheet.create({
     fontWeight: "bold",
   },
   sizeContainer: {
-  flexDirection: "row",
-  backgroundColor: "#d9d9d9",
-  borderRadius: 20,
-  padding: 5,
-  justifyContent: "space-between",
-},
+    flexDirection: "row",
+    backgroundColor: "#d9d9d9",
+    borderRadius: 20,
+    padding: 5,
+    justifyContent: "space-between",
+  },
 
-sizeButton: {
-  flex: 1,
-  padding: 10,
-  alignItems: "center",
-  borderRadius: 20,
-},
+  sizeButton: {
+    flex: 1,
+    padding: 10,
+    alignItems: "center",
+    borderRadius: 20,
+  },
 
-sizeButtonActive: {
-  backgroundColor: "#ffffff",
-},
+  sizeButtonActive: {
+    backgroundColor: "#ffffff",
+  },
 
-sizeText: {
-  color: "#333",
-},
+  sizeText: {
+    color: "#333",
+  },
 
-sizeTextActive: {
-  fontWeight: "bold",
-},
+  sizeTextActive: {
+    fontWeight: "bold",
+  },
 
-switchContainer: {
-  flexDirection: "row",
-  justifyContent: "space-between",
-  alignItems: "center",
-  marginTop: 15,
-}
+  switchContainer: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginTop: 15,
+  },
 });
