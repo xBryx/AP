@@ -6,22 +6,26 @@ import ParallaxScrollView from "@/components/parallax-scroll-view";
 import { ThemedText } from "@/components/themed-text";
 import { ThemedView } from "@/components/themed-view";
 import { Link } from "expo-router";
-import { View, Text, Pressable } from "react-native";
-import { useState } from "react";
+import { View, Text, Pressable, TextInput } from "react-native";
+import { Picker } from "@react-native-picker/picker";
+import { Switch } from "react-native";
+import { useEffect, useState } from "react";
 import { FlatList } from "react-native";
 
-const mascotas = [{
+const [mascotas, setMascotas] = useState([
+  {
     id: 1,
     nombre: "Max",
     tipo: "Perro",
     raza: "Labrador",
     edad: "3 años",
-    Vacunas: true,
-    CondicionesMedicas: "Ninguna",
-    Veterinario: "Dr. Pérez",
-    NumeroVeterinario: "8888-8888",
-    Notas: "Muy juguetón"
-  }];
+    vacunas: true,
+    condicionesMedicas: "Ninguna",
+    veterinario: "Dr. Pérez",
+    numeroVeterinario: "8888-8888",
+    notas: "Muy juguetón",
+  },
+]);
 
 export default function HomeScreen() {
   const [activeTab, setActiveTab] = useState("misMascotas");
@@ -34,6 +38,21 @@ export default function HomeScreen() {
     //To do
     console.log("Reservar para:", mascota.nombre);
   };
+  const handleDelete = (mascota) => {
+    //To do
+    console.log("Eliminar:", mascota.nombre);
+  };
+  const [nombre, setNombre] = useState("");
+const [especie, setEspecie] = useState("");
+  const [raza, setRaza] = useState("");
+  const [edad, setEdad] = useState("");
+  const [sexo, setSexo] = useState("");
+  const [tamano, setTamano] = useState("mediano");
+  const [vacunas, setVacunas] = useState(false);
+  const [vetNombre, setVetNombre] = useState("");
+  const [vetContacto, setVetContacto] = useState("");
+  const [nota, setNota] = useState("");
+
   return (
     <View style={styles.container}>
       {/* Switch del encabezado */}
@@ -72,18 +91,18 @@ export default function HomeScreen() {
                 {item.tipo} | {item.raza} | {item.edad}
               </Text>
               {/* Información de salud */}
-              <Text style={{fontWeight: "bold"}}>Vacunas al día</Text>
-              {item.Vacunas === true ? <Text>Sí</Text> : <Text>No</Text>}
-              <Text style={{fontWeight: "bold"}}>Condiciones médicas</Text>
-              <Text>{item.CondicionesMedicas} </Text>
+              <Text style={{ fontWeight: "bold" }}>Vacunas al día</Text>
+              {item.vacunas === true ? <Text>Sí</Text> : <Text>No</Text>}
+              <Text style={{ fontWeight: "bold" }}>Condiciones médicas</Text>
+              <Text>{item.condicionesMedicas} </Text>
               {/* Información veterinario */}
-              <Text style={{fontWeight: "bold"}}>Veterinario/a</Text>
+              <Text style={{ fontWeight: "bold" }}>Veterinario/a</Text>
               <Text>
-                {item.Veterinario} | {item.NumeroVeterinario}
+                {item.veterinario} | {item.numeroVeterinario}
               </Text>
               {/* Notas */}
-              <Text style={{fontWeight: "bold"}}>Notas</Text>
-              <Text>{item.Notas}</Text>
+              <Text style={{ fontWeight: "bold" }}>Notas</Text>
+              <Text>{item.notas}</Text>
               <View style={{ flexDirection: "row", gap: 10 }}>
                 <Pressable
                   style={styles.button}
@@ -98,13 +117,96 @@ export default function HomeScreen() {
                 >
                   <Text style={styles.textButton}>Hacer Reserva</Text>
                 </Pressable>
+                <Pressable
+                  style={styles.button}
+                  onPress={() => handleDelete(item)}
+                >
+                  <Text style={styles.textButton}>Eliminar</Text>
+                </Pressable>
               </View>
             </View>
           )}
         />
       ) : (
         <View>
-          <Text>Aquí va el formulario ➕</Text>
+          <TextInput
+            style={styles.input}
+            placeholder="Nombre"
+            value={nombre}
+            onChangeText={setNombre}
+          />
+          <Picker
+  selectedValue={especie}
+  onValueChange={(itemValue) => setEspecie(itemValue)}
+></Picker>
+          <TextInput
+            style={styles.input}
+            placeholder="Raza"
+            value={raza}
+            onChangeText={setRaza}
+          />
+          <TextInput
+            style={styles.input}
+            placeholder="Edad"
+            value={edad}
+            onChangeText={setEdad}
+          />
+          <Picker
+            selectedValue={sexo}
+            onValueChange={(itemValue) => setSexo(itemValue)}
+            style={styles.input}
+          >
+            <Picker.Item label="Sexo" value="hembra" />
+            <Picker.Item label="Hembra" value="hembra" />
+            <Picker.Item label="Macho" value="macho" />
+          </Picker>
+          <View style={styles.switchContainer}>
+            <Text>Vacunas al día</Text>
+            <Switch
+              value={vacunas}
+              onValueChange={setVacunas}
+              trackColor={{ false: "#ccc", true: "#4CAF50" }}
+              thumbColor={vacunas ? "#fff" : "#fff"}
+            />
+          </View>
+          <View style={styles.sizeContainer}>
+            {["pequeño", "mediano", "grande"].map((size) => (
+              <Pressable
+                key={size}
+                style={[
+                  styles.sizeButton,
+                  tamano === size && styles.sizeButtonActive,
+                ]}
+                onPress={() => setTamano(size)}
+              >
+                <Text
+                  style={
+                    tamano === size ? styles.sizeTextActive : styles.sizeText
+                  }
+                >
+                  {size.charAt(0).toUpperCase() + size.slice(1)}
+                </Text>
+              </Pressable>
+            ))}
+          </View>
+          <TextInput
+            style={styles.input}
+            placeholder="Nombre del veterinario"
+            value={vetNombre}
+            onChangeText={setVetNombre}
+          />
+          <TextInput
+            style={styles.input}
+            placeholder="Contacto del veterinario"
+            value={vetContacto}
+            onChangeText={setVetContacto}
+          />
+          <TextInput
+            style={styles.input}
+            placeholder="Notas Adicionales"
+            value={nota}
+            onChangeText={setNota}
+          />
         </View>
       )}
     </View>
@@ -184,4 +286,37 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: "bold",
   },
+  sizeContainer: {
+  flexDirection: "row",
+  backgroundColor: "#d9d9d9",
+  borderRadius: 20,
+  padding: 5,
+  justifyContent: "space-between",
+},
+
+sizeButton: {
+  flex: 1,
+  padding: 10,
+  alignItems: "center",
+  borderRadius: 20,
+},
+
+sizeButtonActive: {
+  backgroundColor: "#ffffff",
+},
+
+sizeText: {
+  color: "#333",
+},
+
+sizeTextActive: {
+  fontWeight: "bold",
+},
+
+switchContainer: {
+  flexDirection: "row",
+  justifyContent: "space-between",
+  alignItems: "center",
+  marginTop: 15,
+}
 });

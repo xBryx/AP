@@ -28,7 +28,7 @@ export default function Login() {
     const success = await login(username, password);
 
     if (success) {
-      router.replace('/');
+      router.replace('/(tabs)/perfil');
     } else {
       alert('Usuario o contraseña incorrectos');
     }

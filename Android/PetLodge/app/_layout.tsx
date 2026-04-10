@@ -26,7 +26,7 @@ function RootNavigator() {
   return (
     <Stack screenOptions={{ headerShown: false }}>
       {user ? ( //Existe el usuario (Login guardado)
-        <Stack.Screen name="(tabs)" />
+        <Stack.Screen name="(tabs)/perfil" />
       ) : ( //No está logeado
         <Stack.Screen name='(auth)/login' />
       )}
