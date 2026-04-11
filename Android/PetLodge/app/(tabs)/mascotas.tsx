@@ -52,8 +52,7 @@ export default function HomeScreen() {
   const [activeTab, setActiveTab] = useState("misMascotas");
   //To do
   const handleEdit = (mascota) => {
-    
-    router.push("/mascota_edit")
+    router.push("/mascota_edit");
   };
 
   const handleReserve = (mascota) => {
@@ -64,22 +63,40 @@ export default function HomeScreen() {
     //To do
     console.log("Eliminar:", mascota.nombre);
   };
-  const [nombre, setNombre] = useState("");
 
+  const [nombre, setNombre] = useState("");
+  const [especie, setEspecie] = useState("");
   const [raza, setRaza] = useState("");
   const [edad, setEdad] = useState("");
   const [sexo, setSexo] = useState("");
   const [tamano, setTamano] = useState("mediano");
   const [vacunas, setVacunas] = useState(false);
+  const [notaVacunas, setNotaVacunas] = useState("");
+  const [condMedicas, setcondMedicas] = useState(false);
+  const [notaCondMedicas, setNotasCondMedicas] = useState("");
   const [vetNombre, setVetNombre] = useState("");
   const [vetContacto, setVetContacto] = useState("");
   const [nota, setNota] = useState("");
 
+  const handleAddMascota = () => {
+    const nuevaMascota = {
+      nombre,
+      especie,
+      raza,
+      edad,
+      vacunas,
+      condicionesMedicas: "",
+      veterinario: vetNombre,
+      numeroVeterinario: vetContacto,
+      notas: nota,
+    };
+  };
+
   return (
-      <ScrollView
+    <ScrollView
       style={{ backgroundColor: "#FFFF" }}
-        contentContainerStyle={{ justifyContent: "center" }}
-      >
+      contentContainerStyle={{ justifyContent: "center" }}
+    >
       {/* Switch del encabezado */}
       <View style={styles.tabContainer}>
         <Pressable
@@ -154,15 +171,19 @@ export default function HomeScreen() {
         />
       ) : (
         <View>
+          {/* AÑADIR MASCOTAS */}
+
+          {/* Nombre de mascota */}
           <TextInput
             style={styles.input}
             placeholder="Nombre"
             value={nombre}
             onChangeText={setNombre}
           />
+          {/* Especie */}
           <Picker
-            selectedValue={especies}
-            onValueChange={(itemValue) => itemValue}
+            selectedValue={especie}
+            onValueChange={(itemValue) => setEspecie(itemValue)}
           >
             <Picker.Item label="Seleccione especie" value="" />
 
@@ -174,18 +195,21 @@ export default function HomeScreen() {
               />
             ))}
           </Picker>
+          {/* Raza */}
           <TextInput
             style={styles.input}
             placeholder="Raza"
             value={raza}
             onChangeText={setRaza}
           />
+          {/* Edad */}
           <TextInput
             style={styles.input}
             placeholder="Edad"
             value={edad}
             onChangeText={setEdad}
           />
+          {/* Sexo */}
           <Picker
             selectedValue={sexo}
             onValueChange={(itemValue) => setSexo(itemValue)}
@@ -196,6 +220,7 @@ export default function HomeScreen() {
             <Picker.Item label="Macho" value="macho" />
           </Picker>
           <View style={styles.switchContainer}>
+            {/* Vacunas */}
             <Text>Vacunas al día</Text>
             <Switch
               value={vacunas}
@@ -204,6 +229,37 @@ export default function HomeScreen() {
               thumbColor={vacunas ? "#fff" : "#fff"}
             />
           </View>
+
+          {/*Solo se muestra si tiene las vacunas activas*/}
+          {vacunas && (
+            <TextInput
+              style={styles.input}
+              placeholder="Especificar vacunas"
+              value={notaVacunas}
+              onChangeText={setNotaVacunas}
+            />
+          )}
+          {/* Condiciones médicas */}
+          <View style={styles.switchContainer}>
+            <Text>Condiciones Médicas</Text>
+            <Switch
+              value={condMedicas}
+              onValueChange={setcondMedicas}
+              trackColor={{ false: "#ccc", true: "#4CAF50" }}
+              thumbColor={condMedicas ? "#fff" : "#fff"}
+            />
+          </View>
+
+          {/*Solo se muestra si tiene condiciones médicas*/}
+          {condMedicas && (
+            <TextInput
+              style={styles.input}
+              placeholder="Especificar condiciones médicas"
+              value={notaCondMedicas}
+              onChangeText={setNotasCondMedicas}
+            />
+          )}
+          {/* Tamaño */}
           <View style={styles.sizeContainer}>
             {["pequeño", "mediano", "grande"].map((size) => (
               <Pressable
@@ -224,6 +280,7 @@ export default function HomeScreen() {
               </Pressable>
             ))}
           </View>
+          {/* Info veterinario */}
           <TextInput
             style={styles.input}
             placeholder="Nombre del veterinario"
@@ -236,12 +293,16 @@ export default function HomeScreen() {
             value={vetContacto}
             onChangeText={setVetContacto}
           />
+          {/* Notas */}
           <TextInput
             style={styles.input}
             placeholder="Notas Adicionales"
             value={nota}
             onChangeText={setNota}
           />
+          <Pressable style={styles.button} onPress={handleAddMascota}>
+            <Text style={styles.textButton}>Guardar mascota</Text>
+          </Pressable>
         </View>
       )}
     </ScrollView>
