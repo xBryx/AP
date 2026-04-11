@@ -12,7 +12,7 @@ import { Switch } from "react-native";
 import { useEffect, useState } from "react";
 import { FlatList } from "react-native";
 import { ScrollView } from "react-native";
-import { Background } from "@react-navigation/elements";
+import * as ImagePicker from "expo-image-picker";
 import { useRouter } from "expo-router";
 
 export default function HomeScreen() {
@@ -28,6 +28,7 @@ export default function HomeScreen() {
       veterinario: "Dr. Pérez",
       numeroVeterinario: "8888-8888",
       notas: "Muy juguetón",
+      profileImage: "",
     },
     {
       id: 2,
@@ -40,6 +41,7 @@ export default function HomeScreen() {
       veterinario: "Dr. Pérez",
       numeroVeterinario: "8888-8888",
       notas: "Muy juguetón",
+      profileImage: "",
     },
   ]);
   const especies = [
@@ -77,6 +79,7 @@ export default function HomeScreen() {
   const [vetNombre, setVetNombre] = useState("");
   const [vetContacto, setVetContacto] = useState("");
   const [nota, setNota] = useState("");
+  const [petImage, setPetImage] = useState("");
 
   const handleAddMascota = () => {
     const nuevaMascota = {
@@ -89,7 +92,18 @@ export default function HomeScreen() {
       veterinario: vetNombre,
       numeroVeterinario: vetContacto,
       notas: nota,
+      profileImage: petImage,
     };
+  };
+  const handlePickImage = async () => {
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      quality: 1,
+    });
+
+    if (!result.canceled) {
+      setPetImage(result.assets[0].uri);
+    }
   };
 
   return (
@@ -126,6 +140,19 @@ export default function HomeScreen() {
           keyExtractor={(item) => item.id.toString()}
           renderItem={({ item }) => (
             <View style={styles.card}>
+              {/*Foto de mascota*/}
+              {item.profileImage ? (
+                <Image
+                  source={{ uri: item.profileImage }}
+                  style={styles.avatarMascota}
+                />
+              ) : (
+                <View style={styles.avatarPlaceholder}>
+                  <Text style={styles.avatarInitial}>
+                    {item.nombre.charAt(0).toUpperCase()}
+                  </Text>
+                </View>
+              )}
               {/* Nombre y raza */}
               <Text style={styles.nombreMascota}>{item.nombre}</Text>
               {/* Información especie */}
@@ -172,6 +199,11 @@ export default function HomeScreen() {
       ) : (
         <View>
           {/* AÑADIR MASCOTAS */}
+
+          {/*Foto de mascota*/}
+          <Pressable onPress={handlePickImage} style={styles.button}>
+            <Text style={styles.textButton}>Seleccionar imagen</Text>
+          </Pressable>
 
           {/* Nombre de mascota */}
           <TextInput
@@ -414,5 +446,29 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     alignItems: "center",
     marginTop: 15,
+  },
+  avatarMascota: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    alignSelf: "center",
+    marginBottom: 10,
+  },
+
+  avatarPlaceholder: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: "#ccc",
+    justifyContent: "center",
+    alignItems: "center",
+    alignSelf: "center",
+    marginBottom: 10,
+  },
+
+  avatarInitial: {
+    fontSize: 30,
+    color: "#fff",
+    fontWeight: "bold",
   },
 });

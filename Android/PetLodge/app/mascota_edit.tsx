@@ -3,6 +3,7 @@ import { View, Text, Pressable, TextInput } from "react-native";
 import { Picker } from "@react-native-picker/picker";
 import { Switch } from "react-native";
 import { useEffect, useState } from "react";
+import * as ImagePicker from "expo-image-picker";
 import { FlatList } from "react-native";
 import { ScrollView } from "react-native";
 
@@ -30,6 +31,7 @@ export default function HomeScreen() {
   const [vetNombre, setVetNombre] = useState("");
   const [vetContacto, setVetContacto] = useState("");
   const [nota, setNota] = useState("");
+  const [petImage, setPetImage] = useState("");
 
     const handleEditMascota = () => {
     const nuevaMascota = {
@@ -42,13 +44,27 @@ export default function HomeScreen() {
       veterinario: vetNombre,
       numeroVeterinario: vetContacto,
       notas: nota,
+      profileImage: petImage,
     };
   };
+
+    const handlePickImage = async () => {
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        quality: 1,
+      });
+  
+      if (!result.canceled) {
+        setPetImage(result.assets[0].uri);
+      }
+    };
 
   return (
     <View style={styles.container}>
               {/* AÑADIR MASCOTAS */}
-    
+    <Pressable onPress={handlePickImage} style={styles.button}>
+                <Text style={styles.textButton}>Seleccionar imagen</Text>
+              </Pressable>
               {/* Nombre de mascota */}
               <TextInput
                 style={styles.input}
