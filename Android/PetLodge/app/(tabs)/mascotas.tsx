@@ -1,27 +1,34 @@
+import { Ionicons } from "@expo/vector-icons";
 import { Image } from "expo-image";
-import { Platform, StyleSheet } from "react-native";
-
-import { HelloWave } from "@/components/hello-wave";
-import ParallaxScrollView from "@/components/parallax-scroll-view";
-import { ThemedText } from "@/components/themed-text";
-import { ThemedView } from "@/components/themed-view";
-import { Link } from "expo-router";
-import { View, Text, Pressable, TextInput } from "react-native";
-import { Picker } from "@react-native-picker/picker";
-import { Switch } from "react-native";
-import { useEffect, useState } from "react";
-import { FlatList } from "react-native";
-import { ScrollView } from "react-native";
 import * as ImagePicker from "expo-image-picker";
 import { useRouter } from "expo-router";
-import { Alert } from "react-native";
+import { useCallback, useEffect, useState } from "react";
+import {
+  ActivityIndicator,
+  Alert,
+  FlatList,
+  Modal,
+  Pressable,
+  RefreshControl,
+  ScrollView,
+  StyleSheet,
+  Switch,
+  Text,
+  TextInput,
+  View,
+} from "react-native";
+import { Dropdown } from "react-native-element-dropdown";
+import { SafeAreaView } from "react-native-safe-area-context";
+import Toast from "react-native-toast-message";
+import { useAuth } from "../../constants/AuthContext";
+import { supabase } from "../../lib/supabase";
 
 const noNulos = (texto: string): boolean => {
   return texto.trim() !== "";
 };
 
 const soloLetras = (texto: string, nombreCampo: string): boolean => {
-  if (/^[A-Za-z]*$/.test(texto)) {
+  if (/^[A-Za-z\s]*$/.test(texto)) {
     return true;
   } else {
     Alert.alert("Error", "Solo se permiten letras en " + nombreCampo);
@@ -42,403 +49,858 @@ const numerosYletras = (texto: string, nombreCampo: string): boolean => {
   } else {
     Alert.alert(
       "Error",
-      "No se permiten caracteres especiales en " + nombreCampo
+      "No se permiten caracteres especiales en " + nombreCampo,
     );
     return false;
   }
 };
-export default function HomeScreen() {
-  const [mascotas, setMascotas] = useState([
-    {
-      id: 1,
-      nombre: "Max",
-      tipo: "Perro",
-      raza: "Labrador",
-      edad: "3 años",
-      vacunas: true,
-      condicionesMedicas: "Ninguna",
-      veterinario: "Dr. Pérez",
-      numeroVeterinario: "8888-8888",
-      notas: "Muy juguetón",
-      profileImage: "",
-    },
-    {
-      id: 2,
-      nombre: "juan",
-      tipo: "Perro",
-      raza: "Labrador",
-      edad: "3 años",
-      vacunas: true,
-      condicionesMedicas: "Ninguna",
-      veterinario: "Dr. Pérez",
-      numeroVeterinario: "8888-8888",
-      notas: "Muy juguetón",
-      profileImage: "",
-    },
-  ]);
-  const especies = [
-    { label: "Perro", value: "perro" },
-    { label: "Gato", value: "gato" },
-    { label: "Ave", value: "ave" },
-    { label: "Conejo", value: "conejo" },
-  ];
-  const router = useRouter();
-  const [activeTab, setActiveTab] = useState("misMascotas");
-  //To do
-  const handleEdit = (mascota) => {
-    router.push("/mascota_edit");
-  };
+const MascotaCard = ({
+  item,
+  handleEdit,
+  handleReserve,
+  handleDelete,
+}: any) => {
+  const [expandedVaccines, setExpandedVaccines] = useState(false);
+  const [expandedConditions, setExpandedConditions] = useState(false);
+  const [expandedNotes, setExpandedNotes] = useState(false);
 
-  const handleReserve = (mascota) => {
-    //To do
-    console.log("Reservar para:", mascota.nombre);
-  };
-  const handleDelete = (mascota) => {
-    //To do
-    console.log("Eliminar:", mascota.nombre);
-  };
+  const hasVetName = !!item.veterinarian_name;
+  const hasVetContact = !!item.veterinarian_contact;
+  let vetDisplay = "No especificado";
+  if (hasVetName && hasVetContact) {
+    vetDisplay = `${item.veterinarian_name} | ${item.veterinarian_contact}`;
+  } else if (hasVetName) {
+    vetDisplay = item.veterinarian_name;
+  } else if (hasVetContact) {
+    vetDisplay = item.veterinarian_contact;
+  }
+
+  return (
+    <View style={styles.card}>
+      <View style={styles.cardHeaderRow}>
+        <View style={styles.avatarContainer}>
+          {item.image_url ? (
+            <Image
+              source={{ uri: item.image_url }}
+              style={styles.avatarMascota}
+            />
+          ) : (
+            <View style={styles.avatarPlaceholder}>
+              <Text style={styles.avatarInitial}>
+                {item.name ? item.name.charAt(0).toUpperCase() : "?"}
+              </Text>
+            </View>
+          )}
+        </View>
+        <View style={styles.headerTextContainer}>
+          <Text style={styles.nombreMascota}>{item.name}</Text>
+          <Text style={styles.infoMascota}>
+            {item.species?.name} | {item.race}
+          </Text>
+          <Text style={styles.infoMascota}>
+            {item.sex === "M" ? "Macho" : "Hembra"} | {item.age} meses
+          </Text>
+          <Text style={styles.infoMascota}>Tamaño: {item.size}</Text>
+        </View>
+        <Pressable onPress={() => handleDelete(item)} style={styles.deleteIcon}>
+          <Ionicons name="trash-outline" size={24} color="#4A5B4D" />
+        </Pressable>
+      </View>
+
+      <View style={styles.cardContentRow}>
+        <View style={styles.cardColumn}>
+          <Text style={styles.sectionTitle}>Salud</Text>
+          <View style={styles.divider} />
+          <Text style={styles.itemLabel}>Vacunas al día</Text>
+          <Text style={styles.itemValue}>{item.vaccinated ? "Sí" : "No"}</Text>
+
+          {item.vaccine_detail ? (
+            <View style={styles.accordionContainer}>
+              <Pressable
+                style={styles.accordionHeader}
+                onPress={() => setExpandedVaccines(!expandedVaccines)}
+              >
+                <Text style={styles.itemLabel}>Detalle Vacunas</Text>
+                <Ionicons
+                  name={expandedVaccines ? "chevron-up" : "chevron-down"}
+                  size={16}
+                  color="#333"
+                />
+              </Pressable>
+              {expandedVaccines && (
+                <Text style={styles.itemValue}>{item.vaccine_detail}</Text>
+              )}
+            </View>
+          ) : (
+            <Text style={[styles.itemLabel, { marginTop: 8 }]}>
+              Detalle Vacunas: <Text style={styles.itemValue}>No tiene</Text>
+            </Text>
+          )}
+
+          <Text style={[styles.itemLabel, { marginTop: 12 }]}>
+            Condiciones Médicas
+          </Text>
+          <Text style={styles.itemValue}>
+            {item.medical_conditions ? "Sí" : "No"}
+          </Text>
+
+          {item.medical_conditions_detail ? (
+            <View style={styles.accordionContainer}>
+              <Pressable
+                style={styles.accordionHeader}
+                onPress={() => setExpandedConditions(!expandedConditions)}
+              >
+                <Text style={styles.itemLabel}>Detalle Condiciones</Text>
+                <Ionicons
+                  name={expandedConditions ? "chevron-up" : "chevron-down"}
+                  size={16}
+                  color="#333"
+                />
+              </Pressable>
+              {expandedConditions && (
+                <Text style={styles.itemValue}>
+                  {item.medical_conditions_detail}
+                </Text>
+              )}
+            </View>
+          ) : (
+            <Text style={[styles.itemLabel, { marginTop: 8 }]}>
+              Detalle Condiciones:{" "}
+              <Text style={styles.itemValue}>No tiene</Text>
+            </Text>
+          )}
+        </View>
+
+        <View style={styles.cardColumn}>
+          <Text style={styles.sectionTitle}>Cuidados</Text>
+          <View style={styles.divider} />
+          <Text style={styles.itemLabel}>Veterinario</Text>
+          <Text style={styles.itemValue}>{vetDisplay}</Text>
+
+          {item.special_deals ? (
+            <View style={[styles.accordionContainer, { marginTop: 12 }]}>
+              <Pressable
+                style={styles.accordionHeader}
+                onPress={() => setExpandedNotes(!expandedNotes)}
+              >
+                <Text style={styles.itemLabel}>Notas</Text>
+                <Ionicons
+                  name={expandedNotes ? "chevron-up" : "chevron-down"}
+                  size={16}
+                  color="#333"
+                />
+              </Pressable>
+              {expandedNotes && (
+                <Text style={styles.itemValue}>{item.special_deals}</Text>
+              )}
+            </View>
+          ) : (
+            <Text style={[styles.itemLabel, { marginTop: 12 }]}>
+              Notas: <Text style={styles.itemValue}>No especificadas</Text>
+            </Text>
+          )}
+        </View>
+      </View>
+
+      <View style={styles.actionButtonsRow}>
+        <Pressable
+          style={[styles.actionButton, styles.buttonEdit]}
+          onPress={() => handleEdit(item)}
+        >
+          <Text style={styles.actionButtonText}>Editar</Text>
+        </Pressable>
+        <Pressable
+          style={[styles.actionButton, styles.buttonReserve]}
+          onPress={() => handleReserve(item)}
+        >
+          <Text style={styles.actionButtonText}>Hacer Reserva</Text>
+        </Pressable>
+      </View>
+    </View>
+  );
+};
+
+export default function HomeScreen() {
+  const { session } = useAuth();
+  const router = useRouter();
+
+  const [mascotas, setMascotas] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [activeTab, setActiveTab] = useState<"misMascotas" | "agregar">(
+    "misMascotas",
+  );
+
+  const [especies, setEspecies] = useState<any[]>([]);
 
   const [nombre, setNombre] = useState("");
-  const [especie, setEspecie] = useState("perro");
+  const [especie, setEspecie] = useState("");
   const [raza, setRaza] = useState("");
-  const [edad, setEdad] = useState<number>(1);
-  const [sexo, setSexo] = useState("macho");
-  const [tamano, setTamano] = useState("mediano");
+  const [edad, setEdad] = useState<number | "">("");
+  const [sexo, setSexo] = useState("Macho");
+  const [tamano, setTamano] = useState("Mediano");
   const [vacunas, setVacunas] = useState(false);
   const [notaVacunas, setNotaVacunas] = useState("");
   const [condMedicas, setcondMedicas] = useState(false);
   const [notaCondMedicas, setNotasCondMedicas] = useState("");
   const [vetNombre, setVetNombre] = useState("");
-  const [vetContacto, setVetContacto] = useState<number>(0);
+  const [vetContacto, setVetContacto] = useState("");
   const [nota, setNota] = useState("");
   const [petImage, setPetImage] = useState("");
 
-  const handleAddMascota = () => {
-if (!noNulos(nombre)) {
-      Alert.alert("Error", "No se permiten nulos en nombre");
-      return;
-    } else if (!noNulos(especie)) {
-      Alert.alert("Error", "No se permiten nulos en apellido");
-      return;
-    } else if (!noNulos(raza)) {
-      Alert.alert("Error", "cedula");
-      return;
-    } else if (!noNulos(edad.toString())) {
-      Alert.alert("Error", "No se permiten nulos en teléfono");
-      return;
-    } else if (!noNulos(vetNombre)) {
-      Alert.alert("Error", "No se permiten nulos en email");
-      return;
-    } else if (!noNulos(vetContacto.toString())) {
-      Alert.alert("Error", "No se permiten nulos en teléfono");
+  const [cancelModalVisible, setCancelModalVisible] = useState(false);
+  const [mascotaToCancel, setMascotaToCancel] = useState<any>(null);
+
+  const [editingMascotaId, setEditingMascotaId] = useState<string | null>(null);
+
+  const resetForm = useCallback(() => {
+    setEditingMascotaId(null);
+    setNombre("");
+    if (especies.length > 0) setEspecie(especies[0].id);
+    setRaza("");
+    setEdad("");
+    setSexo("Macho");
+    setTamano("Mediano");
+    setVacunas(false);
+    setNotaVacunas("");
+    setcondMedicas(false);
+    setNotasCondMedicas("");
+    setVetNombre("");
+    setVetContacto("");
+    setNota("");
+    setPetImage("");
+  }, [especies]);
+
+  const loadPets = useCallback(async () => {
+    if (!session?.user?.id || !supabase) return;
+    setLoading(true);
+    try {
+      const { data, error } = await supabase
+        .from("pet")
+        .select("*, species(name)")
+        .eq("user_id", session.user.id)
+        .eq("active", true)
+        .order("creation_date", { ascending: false });
+
+      if (error) throw error;
+      setMascotas(data || []);
+    } catch (err: any) {
+      Alert.alert("Error", "Error al cargar mascotas: " + err.message);
+    } finally {
+      setLoading(false);
+    }
+  }, [session?.user?.id]);
+
+  const loadSpecies = useCallback(async () => {
+    if (!supabase) return;
+    try {
+      const { data, error } = await supabase.from("species").select("*");
+      if (error) throw error;
+      setEspecies(data || []);
+      if (data && data.length > 0) setEspecie(data[0].id);
+    } catch (err: any) {
+      console.log(err.message);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadPets();
+    loadSpecies();
+  }, [loadPets, loadSpecies]);
+
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    await loadPets();
+    setRefreshing(false);
+  }, [loadPets]);
+
+  const handleEdit = (mascota: any) => {
+    setEditingMascotaId(mascota.id);
+    setNombre(mascota.name || "");
+    setEspecie(mascota.species_id || "");
+    setRaza(mascota.race || "");
+    setEdad(mascota.age != null ? mascota.age.toString() : "");
+    setSexo(mascota.sex === "M" ? "Macho" : "Hembra");
+    setTamano(mascota.size || "Mediano");
+    setVacunas(mascota.vaccinated || false);
+    setNotaVacunas(mascota.vaccine_detail || "");
+    setcondMedicas(mascota.medical_conditions || false);
+    setNotasCondMedicas(mascota.medical_conditions_detail || "");
+    setVetNombre(mascota.veterinarian_name || "");
+    setVetContacto(mascota.veterinarian_contact || "");
+    setNota(mascota.special_deals || "");
+    setPetImage(mascota.image_url || "");
+    setActiveTab("agregar");
+  };
+
+  const handleReserve = (mascota: any) => {
+    router.push({
+      pathname: "/(tabs)/reservas",
+      params: { action: "nueva", petId: mascota.id },
+    });
+  };
+
+  const confirmDeleteMascota = (mascota: any) => {
+    setMascotaToCancel(mascota);
+    setCancelModalVisible(true);
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!mascotaToCancel || !supabase) return;
+    try {
+      const { error } = await supabase
+        .from("pet")
+        .update({ active: false })
+        .eq("id", mascotaToCancel.id);
+      if (error) {
+        Alert.alert("Error", error.message);
+      } else {
+        Toast.show({
+          type: "success",
+          text1: "Mascota eliminada",
+          text2: "La mascota se eliminó correctamente.",
+        });
+        loadPets();
+      }
+    } catch (e: any) {
+      Alert.alert("Error", e.message);
+    } finally {
+      setCancelModalVisible(false);
+      setMascotaToCancel(null);
+    }
+  };
+
+  const handleCloseModal = () => {
+    setCancelModalVisible(false);
+    setMascotaToCancel(null);
+  };
+
+  const handleAddMascota = async () => {
+    if (
+      !noNulos(nombre) ||
+      !noNulos(raza) ||
+      edad === "" ||
+      !noNulos(especie)
+    ) {
+      Alert.alert("Error", "Por favor complete los campos obligatorios.");
       return;
     }
-    const nuevaMascota = {
-      nombre,
-      especie,
-      raza,
-      edad,
-      sexo,
-      tamano,
-      vacunas,
-      notaVacunas,
-      condMedicas,
-      notaCondMedicas,
-      vetNombre,
-      vetContacto,
-      nota,
-      profileImage: petImage,
-    };
+    if (!session?.user?.id || !supabase) return;
+
+    try {
+      const payload = {
+        user_id: session.user.id,
+        species_id: especie,
+        race: raza,
+        name: nombre,
+        age: Number(edad),
+        sex: sexo.charAt(0), // 'M' o 'H'
+        size: tamano,
+        image_url: petImage || null,
+        vaccinated: vacunas,
+        vaccine_detail: vacunas ? notaVacunas : null,
+        medical_conditions: condMedicas,
+        medical_conditions_detail: condMedicas ? notaCondMedicas : null,
+        veterinarian_name: vetNombre || null,
+        veterinarian_contact: vetContacto || null,
+        special_deals: nota || null,
+      };
+
+      let error;
+      if (editingMascotaId) {
+        const res = await supabase
+          .from("pet")
+          .update(payload)
+          .eq("id", editingMascotaId);
+        error = res.error;
+      } else {
+        const res = await supabase.from("pet").insert(payload);
+        error = res.error;
+      }
+
+      if (error) throw error;
+      Toast.show({
+        type: "success",
+        text1: editingMascotaId
+          ? "Mascota actualizada"
+          : "Mascota guardada exitosamente",
+      });
+      resetForm();
+      setActiveTab("misMascotas");
+      loadPets();
+    } catch (err: any) {
+      Alert.alert("Error al guardar", err.message);
+    }
   };
+
   const handlePickImage = async () => {
-    const result = await ImagePicker.launchImageLibraryAsync({
+    const permissionResult = await ImagePicker.requestCameraPermissionsAsync();
+    if (!permissionResult.granted) {
+      Alert.alert(
+        "Permiso Denegado",
+        "Se necesita permiso para usar la cámara.",
+      );
+      return;
+    }
+    const result = await ImagePicker.launchCameraAsync({
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
       quality: 1,
     });
-
-    if (!result.canceled) {
+    if (!result.canceled && result.assets && result.assets.length > 0) {
       setPetImage(result.assets[0].uri);
     }
   };
 
-  return (
-    <ScrollView
-      style={{ backgroundColor: "#FFFF" }}
-      contentContainerStyle={{ justifyContent: "center" }}
-    >
-      {/* Switch del encabezado */}
-      <View style={styles.tabContainer}>
-        <Pressable
-          style={[
-            styles.tabButton,
-            activeTab === "misMascotas" && styles.activeTab,
-          ]}
-          onPress={() => setActiveTab("misMascotas")}
-        >
-          <Text>Mis mascotas</Text>
-        </Pressable>
+  const renderMisMascotas = () => {
+    return (
+      <FlatList
+        data={mascotas}
+        keyExtractor={(item) => item.id}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+        }
+        contentContainerStyle={{ paddingBottom: 20 }}
+        showsVerticalScrollIndicator={false}
+        ListEmptyComponent={
+          loading ? (
+            <ActivityIndicator
+              size="large"
+              color="#4A3717"
+              style={styles.loader}
+            />
+          ) : (
+            <Text style={styles.emptyText}>No hay mascotas registradas</Text>
+          )
+        }
+        renderItem={({ item }) => (
+          <MascotaCard
+            item={item}
+            handleEdit={handleEdit}
+            handleReserve={handleReserve}
+            handleDelete={confirmDeleteMascota}
+          />
+        )}
+      />
+    );
+  };
 
+  const renderAgregar = () => (
+    <ScrollView
+      contentContainerStyle={{ paddingBottom: 40 }}
+      showsVerticalScrollIndicator={false}
+    >
+      <View style={{ alignItems: "center", marginBottom: 20 }}>
         <Pressable
-          style={[
-            styles.tabButton,
-            activeTab === "agregar" && styles.activeTab,
-          ]}
-          onPress={() => setActiveTab("agregar")}
+          onPress={handlePickImage}
+          style={styles.formAvatarPlaceholder}
         >
-          <Text>Añadir mascotas</Text>
+          {petImage ? (
+            <Image source={{ uri: petImage }} style={styles.formAvatarImage} />
+          ) : (
+            <Ionicons name="person-outline" size={40} color="#7a5c37" />
+          )}
         </Pressable>
       </View>
-      {/*Comparación para saber que vista mostrar*/}
-      {activeTab === "misMascotas" ? (
-        <FlatList
-          data={mascotas}
-          keyExtractor={(item) => item.id.toString()}
-          renderItem={({ item }) => (
-            <View style={styles.card}>
-              {/*Foto de mascota*/}
-              {item.profileImage ? (
-                <Image
-                  source={{ uri: item.profileImage }}
-                  style={styles.avatarMascota}
-                />
-              ) : (
-                <View style={styles.avatarPlaceholder}>
-                  <Text style={styles.avatarInitial}>
-                    {item.nombre.charAt(0).toUpperCase()}
-                  </Text>
-                </View>
-              )}
-              {/* Nombre y raza */}
-              <Text style={styles.nombreMascota}>{item.nombre}</Text>
-              {/* Información especie */}
-              <Text>
-                {item.tipo} | {item.raza} | {item.edad}
-              </Text>
-              {/* Información de salud */}
-              <Text style={{ fontWeight: "bold" }}>Vacunas al día</Text>
-              {item.vacunas === true ? <Text>Sí</Text> : <Text>No</Text>}
-              <Text style={{ fontWeight: "bold" }}>Condiciones médicas</Text>
-              <Text>{item.condicionesMedicas} </Text>
-              {/* Información veterinario */}
-              <Text style={{ fontWeight: "bold" }}>Veterinario/a</Text>
-              <Text>
-                {item.veterinario} | {item.numeroVeterinario}
-              </Text>
-              {/* Notas */}
-              <Text style={{ fontWeight: "bold" }}>Notas</Text>
-              <Text>{item.notas}</Text>
-              <View style={{ flexDirection: "row", gap: 10 }}>
-                <Pressable
-                  style={styles.button}
-                  onPress={() => handleEdit(item)}
-                >
-                  <Text style={styles.textButton}>Editar</Text>
-                </Pressable>
 
-                <Pressable
-                  style={styles.button}
-                  onPress={() => handleReserve(item)}
-                >
-                  <Text style={styles.textButton}>Hacer Reserva</Text>
-                </Pressable>
-                <Pressable
-                  style={styles.button}
-                  onPress={() => handleDelete(item)}
-                >
-                  <Text style={styles.textButton}>Eliminar</Text>
-                </Pressable>
-              </View>
-            </View>
-          )}
-        />
-      ) : (
-        <View>
-          {/* AÑADIR MASCOTAS */}
+      <TextInput
+        style={styles.inputStyle}
+        placeholder="Nombre"
+        value={nombre}
+        onChangeText={(text) => {
+          if (soloLetras(text, "nombre")) setNombre(text);
+        }}
+      />
 
-          {/*Foto de mascota*/}
-          <Pressable onPress={handlePickImage} style={styles.button}>
-            <Text style={styles.textButton}>Seleccionar imagen</Text>
-          </Pressable>
-
-          {/* Nombre de mascota */}
-          <TextInput
-            style={styles.input}
-            placeholder="Nombre"
-            value={nombre}
-            onChangeText={(text) => {
-              if (soloLetras(text, "nombre")) {
-                setNombre(text);
-              }
-            }}
+      <View style={styles.formRow}>
+        <View style={styles.formCol}>
+          <Dropdown
+            style={styles.dropdown}
+            data={especies}
+            labelField="name"
+            valueField="id"
+            placeholder="Especie"
+            value={especie}
+            onChange={(item) => setEspecie(item.id)}
+            placeholderStyle={{ color: "#888", fontSize: 14 }}
+            selectedTextStyle={{ color: "#333", fontSize: 14 }}
           />
-          {/* Especie */}
-          <Picker
-            selectedValue={especie}
-            onValueChange={(itemValue) => setEspecie(itemValue)}
-          >
-            <Picker.Item label="Seleccione especie" value="" />
-
-            {especies.map((item) => (
-              <Picker.Item
-                key={item.value}
-                label={item.label}
-                value={item.value}
-              />
-            ))}
-          </Picker>
-          {/* Raza */}
+        </View>
+        <View style={styles.formCol}>
           <TextInput
-            style={styles.input}
+            style={styles.inputStyle}
             placeholder="Raza"
             value={raza}
             onChangeText={(text) => {
-              if (soloLetras(text, "raza")) {
-                setRaza(text);
-              }
+              if (soloLetras(text, "raza")) setRaza(text);
             }}
           />
-          {/* Edad */}
-          <TextInput
-            style={styles.input}
-            placeholder="Edad"
-            value={edad.toString()}
-            onChangeText={(text) => {
-              if (soloNumeros(text, "edad")) {
-                setEdad(Number(text));
-              }
-            }}
-          />
-          {/* Sexo */}
-          <Picker
-            selectedValue={sexo}
-            onValueChange={(itemValue) => setSexo(itemValue)}
-            style={styles.input}
-          >
-            <Picker.Item label="Sexo" value="hembra" />
-            <Picker.Item label="Hembra" value="hembra" />
-            <Picker.Item label="Macho" value="macho" />
-          </Picker>
-          <View style={styles.switchContainer}>
-            {/* Vacunas */}
-            <Text>Vacunas al día</Text>
-            <Switch
-              value={vacunas}
-              onValueChange={setVacunas}
-              trackColor={{ false: "#ccc", true: "#4CAF50" }}
-              thumbColor={vacunas ? "#fff" : "#fff"}
-            />
-          </View>
-
-          {/*Solo se muestra si tiene las vacunas activas*/}
-          {vacunas && (
-            <TextInput
-              style={styles.input}
-              placeholder="Especificar vacunas"
-              value={notaVacunas}
-              onChangeText={(text) => {
-              if (numerosYletras(text, "vacunas")) {
-                setNotaVacunas(text);
-              }
-            }}
-            />
-          )}
-          {/* Condiciones médicas */}
-          <View style={styles.switchContainer}>
-            <Text>Condiciones Médicas</Text>
-            <Switch
-              value={condMedicas}
-              onValueChange={setcondMedicas}
-              trackColor={{ false: "#ccc", true: "#4CAF50" }}
-              thumbColor={condMedicas ? "#fff" : "#fff"}
-            />
-          </View>
-
-          {/*Solo se muestra si tiene condiciones médicas*/}
-          {condMedicas && (
-            <TextInput
-              style={styles.input}
-              placeholder="Especificar condiciones médicas"
-              value={notaCondMedicas}
-              onChangeText={(text) => {
-              if (numerosYletras(text, "condiciones médicas")) {
-                setNotasCondMedicas(text);
-              }
-            }}
-            />
-          )}
-          {/* Tamaño */}
-          <View style={styles.sizeContainer}>
-            {["pequeño", "mediano", "grande"].map((size) => (
-              <Pressable
-                key={size}
-                style={[
-                  styles.sizeButton,
-                  tamano === size && styles.sizeButtonActive,
-                ]}
-                onPress={() => setTamano(size)}
-              >
-                <Text
-                  style={
-                    tamano === size ? styles.sizeTextActive : styles.sizeText
-                  }
-                >
-                  {size.charAt(0).toUpperCase() + size.slice(1)}
-                </Text>
-              </Pressable>
-            ))}
-          </View>
-          {/* Info veterinario */}
-          <TextInput
-            style={styles.input}
-            placeholder="Nombre del veterinario"
-            value={vetNombre}
-            onChangeText={(text) => {
-              if (soloLetras(text, "veterinario")) {
-                setVetNombre(text);
-              }
-            }}
-          />
-          <TextInput
-            style={styles.input}
-            placeholder="Contacto del veterinario"
-            value={vetContacto.toString()}
-            onChangeText={(text) => {
-              if (soloNumeros(text, "numero veterinario")) {
-                setVetContacto(Number(text));
-              }
-            }}
-          />
-          {/* Notas */}
-          <TextInput
-            style={styles.input}
-            placeholder="Notas Adicionales"
-            value={nota}
-            onChangeText={setNota}
-          />
-          <Pressable style={styles.button} onPress={handleAddMascota}>
-            <Text style={styles.textButton}>Guardar mascota</Text>
-          </Pressable>
         </View>
+      </View>
+
+      <View style={styles.formRow}>
+        <View style={styles.formCol}>
+          <TextInput
+            style={styles.inputStyle}
+            placeholder="Edad (Meses)"
+            value={edad.toString()}
+            keyboardType="numeric"
+            onChangeText={(text) => setEdad(text ? Number(text) : "")}
+          />
+        </View>
+        <View style={styles.formCol}>
+          <Dropdown
+            style={styles.dropdown}
+            data={[
+              { label: "Macho", value: "Macho" },
+              { label: "Hembra", value: "Hembra" },
+            ]}
+            labelField="label"
+            valueField="value"
+            placeholder="Sexo"
+            value={sexo}
+            onChange={(item) => setSexo(item.value)}
+            placeholderStyle={{ color: "#888", fontSize: 14 }}
+            selectedTextStyle={{ color: "#333", fontSize: 14 }}
+          />
+        </View>
+      </View>
+
+      <View style={styles.sizeContainer}>
+        {["Pequeño", "Mediano", "Grande"].map((size) => (
+          <Pressable
+            key={size}
+            style={[
+              styles.sizeButton,
+              tamano === size && styles.sizeButtonActive,
+            ]}
+            onPress={() => setTamano(size)}
+          >
+            <Text
+              style={tamano === size ? styles.sizeTextActive : styles.sizeText}
+            >
+              {size}
+            </Text>
+          </Pressable>
+        ))}
+      </View>
+
+      <View style={styles.switchRowContainer}>
+        <Text style={styles.switchLabel}>Vacunas al dia</Text>
+        <Switch
+          value={vacunas}
+          onValueChange={setVacunas}
+          thumbColor="#fff"
+          trackColor={{ false: "#ccc", true: "#4A5B4D" }}
+        />
+      </View>
+
+      {vacunas && (
+        <TextInput
+          style={styles.inputStyle}
+          placeholder="Especificar Vacunas (Opcional)"
+          value={notaVacunas}
+          onChangeText={setNotaVacunas}
+        />
+      )}
+
+      <View style={styles.switchRowContainer}>
+        <Text style={styles.switchLabel}>Condiciones Medicas</Text>
+        <Switch
+          value={condMedicas}
+          onValueChange={setcondMedicas}
+          thumbColor="#fff"
+          trackColor={{ false: "#ccc", true: "#4A5B4D" }}
+        />
+      </View>
+
+      {condMedicas && (
+        <TextInput
+          style={styles.inputStyle}
+          placeholder="Especificar Condiciones Medicas (Opcional)"
+          value={notaCondMedicas}
+          onChangeText={setNotasCondMedicas}
+        />
+      )}
+
+      <TextInput
+        style={styles.inputStyle}
+        placeholder="Nombre del Veterinario (Opcional)"
+        value={vetNombre}
+        onChangeText={setVetNombre}
+      />
+      <TextInput
+        style={styles.inputStyle}
+        placeholder="Contacto del veterinario (Opcional)"
+        value={vetContacto}
+        onChangeText={setVetContacto}
+      />
+      <TextInput
+        style={styles.inputStyle}
+        placeholder="Notas especiales (Opcional)"
+        value={nota}
+        onChangeText={setNota}
+      />
+
+      <Pressable style={styles.button} onPress={handleAddMascota}>
+        <Text style={styles.textButton}>
+          {editingMascotaId ? "Actualizar Mascota" : "Guardar Mascota"}
+        </Text>
+      </Pressable>
+
+      {editingMascotaId && (
+        <Pressable
+          style={[styles.button, { backgroundColor: "#ccc", marginTop: 0 }]}
+          onPress={() => {
+            resetForm();
+            setActiveTab("misMascotas");
+          }}
+        >
+          <Text style={[styles.textButton, { color: "#333" }]}>
+            Cancelar Edición
+          </Text>
+        </Pressable>
       )}
     </ScrollView>
+  );
+
+  return (
+    <SafeAreaView style={{ flex: 1, backgroundColor: "#FFFFFF" }}>
+      <View style={styles.container}>
+        <Text style={styles.headerTitle}>Mascotas</Text>
+
+        <View style={styles.mainTabsContainer}>
+          <Pressable
+            style={[
+              styles.selectorButton,
+              styles.selectorButtonMain,
+              activeTab === "misMascotas" && styles.activeSelectorButton,
+            ]}
+            onPress={() => setActiveTab("misMascotas")}
+          >
+            <Text
+              style={[
+                styles.selectorButtonTextMain,
+                activeTab === "misMascotas" && styles.activeSelectorButtonText,
+              ]}
+            >
+              Mis mascotas
+            </Text>
+          </Pressable>
+
+          <Pressable
+            style={[
+              styles.selectorButton,
+              styles.selectorButtonMain,
+              activeTab === "agregar" && styles.activeSelectorButton,
+            ]}
+            onPress={() => setActiveTab("agregar")}
+          >
+            <Text
+              style={[
+                styles.selectorButtonTextMain,
+                activeTab === "agregar" && styles.activeSelectorButtonText,
+              ]}
+            >
+              Añadir mascotas
+            </Text>
+          </Pressable>
+        </View>
+
+        <View style={[styles.content, { paddingBottom: 0 }]}>
+          {activeTab === "misMascotas" ? renderMisMascotas() : renderAgregar()}
+        </View>
+      </View>
+
+      <Modal
+        animationType="fade"
+        transparent={true}
+        visible={cancelModalVisible}
+        onRequestClose={handleCloseModal}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>Eliminar Mascota</Text>
+            <Text style={styles.modalMessage}>
+              ¿Estás seguro de que deseas eliminar a {mascotaToCancel?.name}?
+            </Text>
+            <View style={styles.modalButtons}>
+              <Pressable
+                style={[styles.modalButton, styles.modalButtonCancel]}
+                onPress={handleCloseModal}
+              >
+                <Text style={styles.modalButtonCancelText}>No</Text>
+              </Pressable>
+              <Pressable
+                style={[styles.modalButton, styles.modalButtonConfirm]}
+                onPress={handleConfirmDelete}
+              >
+                <Text style={styles.modalButtonConfirmText}>Sí, eliminar</Text>
+              </Pressable>
+            </View>
+          </View>
+        </View>
+      </Modal>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: "#ffffff",
-    justifyContent: "center",
-    padding: 20,
-  },
-  titleContainer: {
+  headerTitle: {
+    fontSize: 32,
+    fontWeight: "bold",
     color: "#37513f",
-    flexDirection: "row",
+    marginTop: 16,
+    marginBottom: 14,
     textAlign: "center",
-    fontSize: 30,
-    gap: 8,
+  },
+  container: { flex: 1, backgroundColor: "#FFFFFF" },
+  mainTabsContainer: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    paddingVertical: 4,
+    paddingHorizontal: 4,
+    backgroundColor: "#e4e4e4ff",
+    marginTop: 5,
+    marginBottom: 10,
+    marginHorizontal: 5,
+    borderRadius: 20,
+  },
+  selectorButton: {
+    paddingVertical: 6,
+    paddingHorizontal: 10,
+    borderRadius: 20,
+    marginVertical: 2,
+  },
+  selectorButtonMain: {
+    flexBasis: "49%",
+  },
+  activeSelectorButton: { backgroundColor: "#ffffffff" },
+  selectorButtonTextMain: { fontSize: 13, color: "#555", textAlign: "center" },
+  activeSelectorButtonText: { color: "#000000ff", fontWeight: "bold" },
+  content: { flex: 1, paddingHorizontal: 16 },
+  loader: { marginTop: 40 },
+  emptyText: { textAlign: "center", marginTop: 40, color: "#888" },
+
+  card: {
+    backgroundColor: "#ffffff",
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 16,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+    elevation: 7,
+  },
+  cardHeaderRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 16,
+  },
+  avatarContainer: {
+    marginRight: 16,
+  },
+  avatarMascota: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+  },
+  avatarPlaceholder: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    backgroundColor: "#ccc",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  avatarInitial: {
+    fontSize: 28,
+    color: "#fff",
     fontWeight: "bold",
   },
+  headerTextContainer: {
+    flex: 1,
+    alignItems: "flex-start",
+    marginLeft: 10,
+  },
+  nombreMascota: {
+    fontSize: 18,
+    fontWeight: "bold",
+    color: "#37513F",
+  },
+  infoMascota: {
+    fontSize: 12,
+    color: "#333",
+    marginTop: 4,
+  },
+  deleteIcon: {
+    padding: 6,
+  },
+  cardContentRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    marginBottom: 16,
+  },
+  cardColumn: {
+    flex: 1,
+    paddingHorizontal: 8,
+  },
+  sectionTitle: {
+    fontSize: 14,
+    fontWeight: "bold",
+    textAlign: "center",
+    color: "#333",
+    marginBottom: 4,
+  },
+  divider: {
+    height: 1,
+    backgroundColor: "#CCC",
+    marginBottom: 8,
+  },
+  itemLabel: {
+    fontSize: 12,
+    fontWeight: "bold",
+    color: "#333",
+  },
+  itemValue: {
+    fontSize: 11,
+    color: "#555",
+    marginTop: 2,
+    fontWeight: "normal",
+  },
+  accordionContainer: {
+    marginTop: 8,
+  },
+  accordionHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    paddingVertical: 4,
+  },
+  actionButtonsRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    gap: 12,
+    marginTop: 16,
+  },
+  actionButton: {
+    flex: 1,
+    paddingVertical: 12,
+    borderRadius: 8,
+    alignItems: "center",
+  },
+  buttonEdit: {
+    backgroundColor: "#4A3717",
+  },
+  buttonReserve: {
+    backgroundColor: "#4A3717",
+  },
+  actionButtonText: {
+    color: "#FFFFFF",
+    fontWeight: "bold",
+    fontSize: 14,
+  },
+
   input: {
     borderWidth: 1,
     borderColor: "#A8A8A9",
@@ -453,49 +915,19 @@ const styles = StyleSheet.create({
     padding: 15,
     alignItems: "center",
     borderRadius: 5,
-  },
-  text: {
-    color: "#000",
     marginBottom: 10,
-    textAlign: "center",
-    fontSize: 15,
   },
   textButton: {
     color: "#ffffff",
-    marginBottom: 10,
-    fontSize: 20,
-  },
-  textLink: {
-    color: "#4e6e58",
-    marginBottom: 10,
-    fontSize: 15,
-    textAlign: "center",
-  },
-  tabContainer: {
-    flexDirection: "row",
-    backgroundColor: "#ddd",
-    borderRadius: 20,
-    padding: 4,
-    marginBottom: 10,
-  },
-  tabButton: {
-    flex: 1,
-    padding: 10,
-    alignItems: "center",
-    borderRadius: 20,
-  },
-  activeTab: {
-    backgroundColor: "#fff",
-  },
-  card: {
-    backgroundColor: "#dfe9ea",
-    padding: 15,
-    borderRadius: 10,
-    marginBottom: 10,
-  },
-  nombreMascota: {
     fontSize: 16,
     fontWeight: "bold",
+  },
+  switchContainer: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginTop: 15,
+    marginBottom: 10,
   },
   sizeContainer: {
     flexDirection: "row",
@@ -503,55 +935,141 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     padding: 5,
     justifyContent: "space-between",
+    marginBottom: 10,
   },
-
   sizeButton: {
     flex: 1,
     padding: 10,
     alignItems: "center",
     borderRadius: 20,
   },
-
   sizeButtonActive: {
     backgroundColor: "#ffffff",
   },
-
   sizeText: {
     color: "#333",
   },
-
   sizeTextActive: {
     fontWeight: "bold",
   },
-
-  switchContainer: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginTop: 15,
-  },
-  avatarMascota: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    alignSelf: "center",
-    marginBottom: 10,
-  },
-
-  avatarPlaceholder: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    backgroundColor: "#ccc",
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0, 0, 0, 0.5)",
     justifyContent: "center",
     alignItems: "center",
-    alignSelf: "center",
-    marginBottom: 10,
   },
-
-  avatarInitial: {
-    fontSize: 30,
-    color: "#fff",
+  modalContent: {
+    width: "80%",
+    backgroundColor: "white",
+    borderRadius: 16,
+    padding: 24,
+    alignItems: "center",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
+    elevation: 5,
+  },
+  modalTitle: {
+    fontSize: 20,
     fontWeight: "bold",
+    color: "#37513f",
+    marginBottom: 12,
+  },
+  modalMessage: {
+    fontSize: 16,
+    color: "#555",
+    textAlign: "center",
+    marginBottom: 24,
+    lineHeight: 22,
+  },
+  modalButtons: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    width: "100%",
+  },
+  modalButton: {
+    flex: 1,
+    paddingVertical: 12,
+    borderRadius: 8,
+    alignItems: "center",
+    marginHorizontal: 8,
+  },
+  modalButtonCancel: {
+    backgroundColor: "#e4e4e4",
+  },
+  modalButtonCancelText: {
+    color: "#555",
+    fontWeight: "bold",
+    fontSize: 16,
+  },
+  modalButtonConfirm: {
+    backgroundColor: "#D9534F",
+  },
+  modalButtonConfirmText: {
+    color: "white",
+    fontWeight: "bold",
+    fontSize: 16,
+  },
+  formAvatarPlaceholder: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    backgroundColor: "#ccc",
+    alignItems: "center",
+    justifyContent: "center",
+    overflow: "hidden",
+  },
+  formAvatarImage: {
+    width: "100%",
+    height: "100%",
+  },
+  inputStyle: {
+    borderWidth: 1,
+    borderColor: "#c0c0c0ff",
+    borderRadius: 8,
+    padding: 12,
+    marginBottom: 12,
+    height: 50,
+    backgroundColor: "#e4e4e4ff",
+    fontSize: 14,
+  },
+  formRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    marginBottom: 0,
+  },
+  formCol: {
+    flex: 0.48,
+  },
+  pickerWrapper: {
+    borderWidth: 1,
+    borderColor: "#ccc",
+    borderRadius: 8,
+    backgroundColor: "#fff",
+    overflow: "hidden",
+    height: 50,
+    justifyContent: "center",
+  },
+  dropdown: {
+    width: "100%",
+    height: 50,
+    borderColor: "#c0c0c0ff",
+    backgroundColor: "#e4e4e4ff",
+    borderWidth: 1,
+    borderRadius: 8,
+    paddingHorizontal: 10,
+    marginBottom: 12,
+  },
+  switchRowContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 10,
+    paddingHorizontal: 4,
+  },
+  switchLabel: {
+    fontSize: 14,
+    color: "#333",
+    marginRight: 10,
   },
 });

@@ -1,11 +1,14 @@
-﻿import { compareAsc, compareDesc, format, parse } from "date-fns";
+﻿import { Ionicons } from "@expo/vector-icons";
+import { compareAsc, compareDesc, format, parse } from "date-fns";
+import { useLocalSearchParams } from "expo-router";
 import { useCallback, useEffect, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
+  FlatList,
+  Modal,
   Pressable,
   RefreshControl,
-  ScrollView,
   StyleSheet,
   Text,
   View,
@@ -13,8 +16,12 @@ import {
 import { Calendar, LocaleConfig } from "react-native-calendars";
 import { Dropdown } from "react-native-element-dropdown";
 import { SafeAreaView } from "react-native-safe-area-context";
+import Toast from "react-native-toast-message";
 import { useAuth } from "../../constants/AuthContext";
 import { supabase } from "../../lib/supabase";
+
+const CREATE_RESERVATION_RPC = "create_reservation";
+const UPDATE_RESERVATION_RPC = "update_reservation";
 
 LocaleConfig.locales.es = {
   monthNames: [
@@ -89,7 +96,6 @@ type Reservation = {
 type Pet = {
   id: string;
   name: string;
-  species: string;
 };
 
 type AdditionalService = {
@@ -112,71 +118,16 @@ type SortItem = {
   value: SortOption;
 };
 
-const FAKE_RESERVATIONS: Reservation[] = [
-  {
-    id: "1",
-    pet_name: "Tobi",
-    pet_id: "1",
-    entrance: "2026-03-01",
-    exit: "2026-03-11",
-    lodging_type_name: "Especial",
-    lodging_type_id: "2",
-    status_name: "Activa",
-    special_lodging: true,
-    service_ids: ["1", "2"],
-  },
-  {
-    id: "2",
-    pet_name: "Max",
-    pet_id: "2",
-    entrance: "2026-02-10",
-    exit: "2026-02-15",
-    lodging_type_name: "Estándar",
-    lodging_type_id: "1",
-    status_name: "Finalizada",
-    special_lodging: false,
-    service_ids: [],
-  },
-  {
-    id: "3",
-    pet_name: "Luna",
-    pet_id: "3",
-    entrance: "2026-04-20",
-    exit: "2026-04-25",
-    lodging_type_name: "Especial",
-    lodging_type_id: "2",
-    status_name: "Pendiente",
-    special_lodging: true,
-    service_ids: ["3"],
-  },
-];
-
-const FAKE_PETS: Pet[] = [
-  { id: "1", name: "Tobi", species: "Perro" },
-  { id: "2", name: "Max", species: "Perro" },
-  { id: "3", name: "Luna", species: "Gato" },
-];
-
-const FAKE_LODGING_TYPES: LodgingType[] = [
-  { id: "1", name: "Estándar", price_for_night: 25 },
-  { id: "2", name: "Especial", price_for_night: 40 },
-];
-
-const FAKE_ADDITIONAL_SERVICES: AdditionalService[] = [
-  { id: "1", name: "Baño", description: "Baño completo", price: 15 },
-  { id: "2", name: "Paseo", description: "Paseo diario", price: 10 },
-  {
-    id: "3",
-    name: "Alimentación especial",
-    description: "Dieta específica",
-    price: 8,
-  },
-];
-
 const SORT_OPTIONS: SortItem[] = [
   { label: "Más reciente", value: "reciente" },
   { label: "Más antigua", value: "antigua" },
 ];
+
+const normalizeLabel = (value: string) =>
+  value
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase();
 
 const buildMarkedDates = (startInput: string, endInput: string) => {
   let start = parse(startInput, "yyyy-MM-dd", new Date());
@@ -224,6 +175,8 @@ const buildMarkedDates = (startInput: string, endInput: string) => {
 
 export default function HomeScreen() {
   const { session } = useAuth();
+  const params = useLocalSearchParams();
+
   const [activeMainTab, setActiveMainTab] = useState<"historial" | "nueva">(
     "historial",
   );
@@ -235,11 +188,11 @@ export default function HomeScreen() {
   const [loadingReservations, setLoadingReservations] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
-  const [pets] = useState<Pet[]>(FAKE_PETS);
-  const [lodgingTypes] = useState<LodgingType[]>(FAKE_LODGING_TYPES);
-  const [additionalServices] = useState<AdditionalService[]>(
-    FAKE_ADDITIONAL_SERVICES,
-  );
+  const [pets, setPets] = useState<Pet[]>([]);
+  const [lodgingTypes, setLodgingTypes] = useState<LodgingType[]>([]);
+  const [additionalServices, setAdditionalServices] = useState<
+    AdditionalService[]
+  >([]);
 
   const [selectedPetId, setSelectedPetId] = useState<string | null>(null);
   const [startDate, setStartDate] = useState<string>("");
@@ -247,9 +200,9 @@ export default function HomeScreen() {
   const [selectedLodgingTypeId, setSelectedLodgingTypeId] = useState<
     string | null
   >(null);
-  const [selectedServices, setSelectedServices] = useState<Set<string>>(
-    new Set(),
-  );
+  const [selectedServiceQuantities, setSelectedServiceQuantities] = useState<
+    Record<string, number>
+  >({});
   const [submitting, setSubmitting] = useState(false);
 
   const [editingReservationId, setEditingReservationId] = useState<
@@ -257,18 +210,26 @@ export default function HomeScreen() {
   >(null);
   const [isEditingMode, setIsEditingMode] = useState(false);
 
+  const [cancelModalVisible, setCancelModalVisible] = useState(false);
+  const [reservationToCancel, setReservationToCancel] = useState<string | null>(
+    null,
+  );
+
   const [markedDates, setMarkedDates] = useState<any>({});
 
+  const selectedLodgingType = lodgingTypes.find(
+    (l) => l.id === selectedLodgingTypeId,
+  );
   const isSpecial =
-    lodgingTypes.find((l) => l.id === selectedLodgingTypeId)?.name ===
-    "Especial";
+    selectedLodgingType != null &&
+    normalizeLabel(selectedLodgingType.name) === "especial";
 
   const formatDisplayDate = (dateString: string) => {
     return format(parse(dateString, "yyyy-MM-dd", new Date()), "dd/MM/yy");
   };
 
-  const loadReservations = async () => {
-    if (!session?.user?.id) return;
+  const loadReservations = useCallback(async () => {
+    if (!session?.user?.id || !supabase) return;
     setLoadingReservations(true);
 
     try {
@@ -304,8 +265,9 @@ export default function HomeScreen() {
           pet_id: item.pet?.id,
           entrance: item.entrance,
           exit: item.exit,
-          lodging_type_name: item.special_lodging ? "Especial" : "Estándar",
-          status_name: item.reservation_status?.name as StatusName,
+          lodging_type_name: item.special_lodging ? "Especial" : "Estandar",
+          status_name: (item.reservation_status?.name ||
+            "Pendiente") as StatusName,
           total_price: item.total_price,
           special_lodging: item.special_lodging,
           reservation_services: item.additional_reservation_services,
@@ -318,11 +280,87 @@ export default function HomeScreen() {
       setLoadingReservations(false);
       setRefreshing(false);
     }
-  };
+  }, [session?.user?.id]);
 
-  const fetchNewReservationData = async () => {
-    setReservations((prev) => (prev.length ? prev : FAKE_RESERVATIONS));
-  };
+  const loadNewReservationCatalogs = useCallback(async () => {
+    if (!session?.user?.id || !supabase) return;
+
+    try {
+      let petsData: Pet[] = [];
+
+      // Try likely ownership columns; if one fails, fallback to the next.
+      const petsByUserId = await supabase
+        .from("pet")
+        .select("id, name")
+        .eq("user_id", session.user.id)
+        .order("name", { ascending: true });
+
+      if (!petsByUserId.error && petsByUserId.data) {
+        petsData = petsByUserId.data as Pet[];
+      } else {
+        const petsByAuthId = await supabase
+          .from("pet")
+          .select("id, name")
+          .eq("auth_id", session.user.id)
+          .order("name", { ascending: true });
+
+        if (!petsByAuthId.error && petsByAuthId.data) {
+          petsData = petsByAuthId.data as Pet[];
+        }
+      }
+
+      if (petsData.length === 0) {
+        const petsFromReservations = await supabase
+          .from("reservation")
+          .select("pet(id, name)")
+          .eq("user_id", session.user.id);
+
+        if (!petsFromReservations.error && petsFromReservations.data) {
+          const uniquePets = new Map<string, Pet>();
+          (petsFromReservations.data as any[]).forEach((row) => {
+            const p = row.pet;
+            if (p?.id && !uniquePets.has(p.id)) {
+              uniquePets.set(p.id, {
+                id: p.id,
+                name: p.name,
+              });
+            }
+          });
+          petsData = Array.from(uniquePets.values());
+        }
+      }
+
+      const lodgingRes = await supabase
+        .from("lodging_type")
+        .select("id, name, price_for_night")
+        .order("price_for_night", { ascending: true });
+
+      const servicesRes = await supabase
+        .from("additional_services")
+        .select("id, name, description, price")
+        .order("name", { ascending: true });
+
+      setPets(petsData);
+
+      if (!lodgingRes.error && lodgingRes.data) {
+        setLodgingTypes(lodgingRes.data as LodgingType[]);
+      }
+
+      if (!servicesRes.error && servicesRes.data) {
+        setAdditionalServices(servicesRes.data as AdditionalService[]);
+      }
+
+      if (lodgingRes.error) {
+        console.error("Error loading lodging types:", lodgingRes.error);
+      }
+      if (servicesRes.error) {
+        console.error("Error loading additional services:", servicesRes.error);
+      }
+    } catch (error) {
+      console.error("Error loading reservation catalogs:", error);
+      Alert.alert("Error", "No se pudo cargar la información de reservas");
+    }
+  }, [session?.user?.id]);
 
   const fetchReservationDetails = async (reservationId: string) => {
     const res = reservations.find((r) => r.id === reservationId);
@@ -330,17 +368,22 @@ export default function HomeScreen() {
 
     return {
       petId:
-        res.pet_id ||
-        FAKE_PETS.find((p) => p.name === res.pet_name)?.id ||
-        null,
+        res.pet_id || pets.find((p) => p.name === res.pet_name)?.id || null,
       startDate: res.entrance,
       endDate: res.exit,
       lodgingTypeId:
         res.lodging_type_id ||
-        FAKE_LODGING_TYPES.find((lt) => lt.name === res.lodging_type_name)
-          ?.id ||
+        lodgingTypes.find((lt) => lt.name === res.lodging_type_name)?.id ||
         null,
-      serviceIds: new Set(res.service_ids || []),
+      serviceQuantities:
+        res.reservation_services && res.reservation_services.length > 0
+          ? Object.fromEntries(
+              res.reservation_services.map((service) => [
+                service.additional_services.id,
+                service.quantity,
+              ]),
+            )
+          : Object.fromEntries((res.service_ids || []).map((id) => [id, 1])),
     };
   };
 
@@ -358,18 +401,21 @@ export default function HomeScreen() {
       setStartDate(details.startDate);
       setEndDate(details.endDate);
       setSelectedLodgingTypeId(details.lodgingTypeId);
-      setSelectedServices(details.serviceIds);
+      setSelectedServiceQuantities(details.serviceQuantities);
       setMarkedDates(buildMarkedDates(details.startDate, details.endDate));
     } else {
       setSelectedPetId(null);
       setStartDate(reservation.entrance);
       setEndDate(reservation.exit);
       setSelectedLodgingTypeId(
-        FAKE_LODGING_TYPES.find(
-          (lt) => lt.name === reservation.lodging_type_name,
-        )?.id || null,
+        lodgingTypes.find((lt) => lt.name === reservation.lodging_type_name)
+          ?.id || null,
       );
-      setSelectedServices(new Set(reservation.service_ids || []));
+      setSelectedServiceQuantities(
+        Object.fromEntries(
+          (reservation.service_ids || []).map((id) => [id, 1]),
+        ),
+      );
       setMarkedDates(buildMarkedDates(reservation.entrance, reservation.exit));
     }
   };
@@ -381,7 +427,7 @@ export default function HomeScreen() {
     setStartDate("");
     setEndDate("");
     setSelectedLodgingTypeId(null);
-    setSelectedServices(new Set());
+    setSelectedServiceQuantities({});
     setMarkedDates({});
   };
 
@@ -389,10 +435,19 @@ export default function HomeScreen() {
     if (activeMainTab === "historial") {
       loadReservations();
       cancelEdit();
-    } else {
-      fetchNewReservationData();
     }
-  }, [activeMainTab, activeStatusTab]);
+  }, [activeMainTab, activeStatusTab, loadReservations]);
+
+  useEffect(() => {
+    loadNewReservationCatalogs();
+  }, [loadNewReservationCatalogs]);
+
+  useEffect(() => {
+    if (params?.action === "nueva" && params?.petId) {
+      setActiveMainTab("nueva");
+      setSelectedPetId(params.petId as string);
+    }
+  }, [params?.action, params?.petId]);
 
   const onRefresh = useCallback(() => {
     setRefreshing(true);
@@ -402,7 +457,7 @@ export default function HomeScreen() {
     } else {
       setTimeout(() => setRefreshing(false), 250);
     }
-  }, [activeMainTab, activeStatusTab]);
+  }, [activeMainTab, loadReservations]);
 
   const onDayPress = (day: any) => {
     const date = day.dateString;
@@ -437,13 +492,32 @@ export default function HomeScreen() {
   };
 
   const toggleService = (serviceId: string) => {
-    const newSet = new Set(selectedServices);
-    if (newSet.has(serviceId)) newSet.delete(serviceId);
-    else newSet.add(serviceId);
-    setSelectedServices(newSet);
+    setSelectedServiceQuantities((prev) => {
+      if ((prev[serviceId] || 0) > 0) {
+        const { [serviceId]: _removed, ...rest } = prev;
+        return rest;
+      }
+
+      return { ...prev, [serviceId]: 1 };
+    });
+  };
+
+  const changeServiceQuantity = (serviceId: string, delta: number) => {
+    setSelectedServiceQuantities((prev) => {
+      const current = prev[serviceId] || 0;
+      if (current <= 0) return prev;
+
+      const nextValue = Math.max(1, current + delta);
+      return { ...prev, [serviceId]: nextValue };
+    });
   };
 
   const handleSubmitReservation = async () => {
+    if (!session?.user?.id || !supabase) {
+      Alert.alert("Error", "No se pudo validar tu sesión");
+      return;
+    }
+
     if (!selectedPetId) {
       Alert.alert("Error", "Selecciona una mascota");
       return;
@@ -467,76 +541,85 @@ export default function HomeScreen() {
         throw new Error("No se pudo obtener la información seleccionada");
       }
 
-      const specialLodging = lodging.name === "Especial";
+      const specialLodging = normalizeLabel(lodging.name) === "especial";
+      const servicesPayload = Object.entries(selectedServiceQuantities)
+        .filter(([, quantity]) => quantity > 0)
+        .map(([service_id, quantity]) => ({ service_id, quantity }));
+
+      const finalServicesPayload = specialLodging ? servicesPayload : [];
 
       if (editingReservationId) {
-        setReservations((prev) =>
-          prev.map((res) =>
-            res.id === editingReservationId
-              ? {
-                  ...res,
-                  pet_id: pet.id,
-                  pet_name: pet.name,
-                  entrance: startDate,
-                  exit: endDate,
-                  lodging_type_id: lodging.id,
-                  lodging_type_name: lodging.name,
-                  special_lodging: specialLodging,
-                  service_ids: Array.from(selectedServices),
-                }
-              : res,
-          ),
+        const { error: updateReservationError } = await supabase.rpc(
+          UPDATE_RESERVATION_RPC,
+          {
+            p_reservation_id: editingReservationId,
+            p_user_id: session.user.id,
+            p_pet_id: selectedPetId,
+            p_entrance: startDate,
+            p_exit: endDate,
+            p_special_lodging: specialLodging,
+            p_services: finalServicesPayload,
+          },
         );
 
-        Alert.alert("Éxito", "Reserva actualizada correctamente", [
-          {
-            text: "OK",
-            onPress: () => {
-              cancelEdit();
-              setActiveMainTab("historial");
-              setActiveStatusTab("Pendiente");
-            },
-          },
-        ]);
+        if (updateReservationError) {
+          throw updateReservationError;
+        }
+
+        await loadReservations();
+        setActiveStatusTab("Pendiente");
+
+        Toast.show({
+          type: "success",
+          text1: "Éxito",
+          text2: "Reserva actualizada correctamente",
+        });
+
+        cancelEdit();
+        setActiveMainTab("historial");
       } else {
-        const newReservation: Reservation = {
-          id: String(Date.now()),
-          pet_id: pet.id,
-          pet_name: pet.name,
-          entrance: startDate,
-          exit: endDate,
-          lodging_type_id: lodging.id,
-          lodging_type_name: lodging.name,
-          status_name: "Pendiente",
-          special_lodging: specialLodging,
-          service_ids: Array.from(selectedServices),
-        };
-
-        setReservations((prev) => [newReservation, ...prev]);
-
-        Alert.alert("Éxito", "Reserva creada correctamente", [
+        const { error: createReservationError } = await supabase.rpc(
+          CREATE_RESERVATION_RPC,
           {
-            text: "OK",
-            onPress: () => {
-              setActiveMainTab("historial");
-              setActiveStatusTab("Pendiente");
-            },
+            p_user_id: session.user.id,
+            p_pet_id: selectedPetId,
+            p_entrance: startDate,
+            p_exit: endDate,
+            p_special_lodging: specialLodging,
+            p_services: finalServicesPayload,
           },
-        ]);
+        );
+
+        if (createReservationError) {
+          throw createReservationError;
+        }
+
+        await loadReservations();
+        setActiveStatusTab("Pendiente");
+
+        Toast.show({
+          type: "success",
+          text1: "Éxito",
+          text2: "Reserva creada correctamente",
+        });
+
+        setActiveMainTab("historial");
+        setActiveStatusTab("Pendiente");
 
         setSelectedPetId(null);
         setStartDate("");
         setEndDate("");
         setSelectedLodgingTypeId(null);
-        setSelectedServices(new Set());
+        setSelectedServiceQuantities({});
         setMarkedDates({});
       }
     } catch (error) {
       console.error(error);
-      Alert.alert(
-        "Error",
-        "No se pudo procesar la reserva. Inténtalo de nuevo.",
-      );
+      Toast.show({
+        type: "error",
+        text1: "Error",
+        text2: "No se pudo procesar la reserva. Inténtalo de nuevo.",
+      });
     } finally {
       setSubmitting(false);
     }
@@ -560,6 +643,62 @@ export default function HomeScreen() {
     });
   };
 
+  const confirmCancelReservation = (reservationId: string) => {
+    setReservationToCancel(reservationId);
+    setCancelModalVisible(true);
+  };
+
+  const handleConfirmCancel = () => {
+    if (reservationToCancel) {
+      cancelReservation(reservationToCancel);
+    }
+    setCancelModalVisible(false);
+    setReservationToCancel(null);
+  };
+
+  const handleCloseModal = () => {
+    setCancelModalVisible(false);
+    setReservationToCancel(null);
+  };
+
+  const cancelReservation = async (reservationId: string) => {
+    if (!supabase) return;
+    try {
+      setLoadingReservations(true);
+      const { data: statusData, error: statusError } = await supabase
+        .from("reservation_status")
+        .select("id")
+        .eq("name", "Cancelada")
+        .single();
+
+      if (statusError || !statusData) {
+        throw new Error("No se pudo encontrar el estado de cancelación");
+      }
+
+      const { error } = await supabase
+        .from("reservation")
+        .update({ state_id: statusData.id })
+        .eq("id", reservationId);
+
+      if (error) throw error;
+
+      await loadReservations();
+      Toast.show({
+        type: "success",
+        text1: "Éxito",
+        text2: "La reserva fue cancelada.",
+      });
+    } catch (err) {
+      console.error(err);
+      Toast.show({
+        type: "error",
+        text1: "Error",
+        text2: "No se pudo cancelar la reserva.",
+      });
+      setLoadingReservations(false);
+    }
+  };
+
   const renderHistorial = () => {
     const filteredReservations = reservations.filter(
       (r) => r.status_name === activeStatusTab,
@@ -567,63 +706,79 @@ export default function HomeScreen() {
     const sortedReservations = sortReservations(filteredReservations);
 
     return (
-      <>
-        <View style={styles.subTabsScrollViewContainer}>
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.subTabsContainer}
-          >
-            {["Cancelada", "Aceptada", "Activa", "Pendiente", "Finalizada"].map(
-              (tab) => (
+      <FlatList
+        data={sortedReservations}
+        keyExtractor={(item) => item.id}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+        }
+        contentContainerStyle={{ paddingBottom: 20 }}
+        showsVerticalScrollIndicator={false}
+        ListHeaderComponent={
+          <>
+            <View style={styles.selectorContainer}>
+              {[
+                "Cancelada",
+                "Pendiente",
+                "Aceptada",
+                "Activa",
+                "Finalizada",
+              ].map((tab, index) => (
                 <Pressable
                   key={tab}
                   style={[
-                    styles.subTabScroll,
-                    activeStatusTab === tab && styles.activeSubTab,
+                    styles.selectorButton,
+                    index < 3
+                      ? styles.selectorButtonStatusThird
+                      : styles.selectorButtonStatusHalf,
+                    activeStatusTab === tab && styles.activeSelectorButton,
                   ]}
                   onPress={() => setActiveStatusTab(tab as any)}
                 >
                   <Text
                     style={[
-                      styles.subTabTextScroll,
-                      activeStatusTab === tab && styles.activeSubTabText,
+                      styles.selectorButtonTextStatus,
+                      activeStatusTab === tab &&
+                        styles.activeSelectorButtonText,
                     ]}
                   >
                     {tab}
                   </Text>
                 </Pressable>
-              ),
-            )}
-          </ScrollView>
-        </View>
+              ))}
+            </View>
 
-        <Dropdown
-          style={styles.sortDropdown}
-          containerStyle={styles.dropdownContainer}
-          data={SORT_OPTIONS}
-          labelField="label"
-          valueField="value"
-          placeholder="Ordenar por"
-          value={sortOption}
-          onChange={(item) => setSortOption(item.value)}
-        />
-
-        {loadingReservations ? (
-          <ActivityIndicator
-            size="large"
-            color="#4A3717"
-            style={styles.loader}
-          />
-        ) : sortedReservations.length === 0 ? (
-          <Text style={styles.emptyText}>
-            No hay reservas {activeStatusTab.toLowerCase()}
-          </Text>
-        ) : (
-          sortedReservations.map((item) => (
+            <Dropdown
+              style={styles.sortDropdown}
+              containerStyle={styles.dropdownContainer}
+              data={SORT_OPTIONS}
+              labelField="label"
+              valueField="value"
+              placeholder="Ordenar por"
+              value={sortOption}
+              onChange={(item) => setSortOption(item.value)}
+              selectedTextStyle={styles.dropdownText}
+              placeholderStyle={styles.dropdownText}
+            />
+          </>
+        }
+        ListEmptyComponent={
+          loadingReservations ? (
+            <ActivityIndicator
+              size="large"
+              color="#4A3717"
+              style={styles.loader}
+            />
+          ) : (
+            <Text style={styles.emptyText}>
+              No hay reservas {activeStatusTab.toLowerCase()}
+            </Text>
+          )
+        }
+        renderItem={({ item }) => (
+          <View style={styles.reservationCard}>
             <Pressable
-              key={item.id}
-              style={styles.reservationCard}
+              style={{ flex: 1 }}
               onPress={() => editReservation(item)}
               disabled={item.status_name !== "Pendiente"}
             >
@@ -658,7 +813,7 @@ export default function HomeScreen() {
                 item.reservation_services.length > 0 && (
                   <View style={styles.servicesSection}>
                     <Text style={styles.servicesTitle}>
-                      Servicios {item.lodging_type_name}:
+                      Servicio {item.lodging_type_name}:
                     </Text>
                     {item.reservation_services.map((serviceItem, index) => (
                       <Text key={index} style={styles.serviceText}>
@@ -681,128 +836,186 @@ export default function HomeScreen() {
                 <Text style={styles.editHint}>Toca para editar</Text>
               )}
             </Pressable>
-          ))
+
+            {item.status_name === "Pendiente" && (
+              <Pressable
+                style={styles.cancelIcon}
+                onPress={() => confirmCancelReservation(item.id)}
+              >
+                <Ionicons name="close" size={24} color="#D9534F" />
+              </Pressable>
+            )}
+          </View>
         )}
-      </>
+      />
     );
   };
 
   const renderNueva = () => (
-    <ScrollView style={styles.nuevaContainer}>
-      <Text style={styles.formLabel}>Mascota</Text>
-      <Dropdown
-        style={styles.dropdown}
-        data={pets}
-        labelField="name"
-        valueField="id"
-        placeholder="Seleccione una mascota"
-        value={selectedPetId}
-        onChange={(item) => setSelectedPetId(item.id)}
-      />
-
-      <Text style={styles.formLabel}>Fechas</Text>
-      <Calendar
-        markingType="period"
-        markedDates={markedDates}
-        onDayPress={onDayPress}
-        theme={{
-          calendarBackground: "#FFFFFF",
-          textSectionTitleColor: "#37513f",
-          selectedDayBackgroundColor: "#4A3717",
-          selectedDayTextColor: "#FFFFFF",
-          todayTextColor: "#4A3717",
-          dayTextColor: "#2d4150",
-          arrowColor: "#4A3717",
-        }}
-      />
-
-      <Text style={styles.formLabel}>Tipo de hospedaje</Text>
-      {lodgingTypes.map((type) => (
-        <Pressable
-          key={type.id}
-          style={[
-            styles.checkboxRow,
-            selectedLodgingTypeId === type.id && styles.checkboxSelected,
-          ]}
-          onPress={() => {
-            setSelectedLodgingTypeId(type.id);
-            if (type.name !== "Especial") setSelectedServices(new Set());
-          }}
-        >
-          <View style={styles.radioOuter}>
-            {selectedLodgingTypeId === type.id && (
-              <View style={styles.radioInner} />
-            )}
-          </View>
-          <View style={styles.checkboxTextContainer}>
-            <Text style={styles.checkboxTitle}>{type.name}</Text>
-            <Text style={styles.checkboxDescription}>
-              {type.name === "Estándar"
-                ? "Reservación Básica"
-                : "Reservación con servicios especiales"}
-            </Text>
-          </View>
-        </Pressable>
-      ))}
-
-      <Text style={styles.formLabel}>Servicios Adicionales</Text>
-      {additionalServices.map((service) => (
-        <Pressable
-          key={service.id}
-          style={[styles.checkboxRow, !isSpecial && { opacity: 0.4 }]}
-          onPress={() => isSpecial && toggleService(service.id)}
-          disabled={!isSpecial}
-        >
-          <View style={styles.checkboxBox}>
-            {selectedServices.has(service.id) && (
-              <View style={styles.checkboxInner} />
-            )}
-          </View>
-          <Text style={styles.checkboxTitle}>{service.name}</Text>
-        </Pressable>
-      ))}
-
-      <Pressable
-        style={[styles.submitButton, submitting && styles.disabledButton]}
-        onPress={handleSubmitReservation}
-        disabled={submitting}
-      >
-        {submitting ? (
-          <ActivityIndicator color="white" />
-        ) : (
-          <Text style={styles.submitText}>
-            {isEditingMode ? "Actualizar Reserva" : "Enviar Reserva"}
-          </Text>
-        )}
-      </Pressable>
-
-      {isEditingMode && (
+    <FlatList
+      data={[]}
+      renderItem={({ item }) => null}
+      style={styles.nuevaContainer}
+      contentContainerStyle={{ paddingBottom: 40 }}
+      showsVerticalScrollIndicator={false}
+      ListHeaderComponent={
         <>
-          <Pressable style={styles.cancelEditButton} onPress={cancelEdit}>
-            <Text style={styles.cancelEditText}>Cancelar edición</Text>
+          <Text style={styles.formLabel}>Mascota</Text>
+          <Dropdown
+            style={styles.dropdown}
+            data={pets}
+            labelField="name"
+            valueField="id"
+            placeholder="Seleccione una mascota"
+            value={selectedPetId}
+            onChange={(item) => setSelectedPetId(item.id)}
+          />
+
+          <Text style={styles.formLabel}>Fechas</Text>
+          <Calendar
+            markingType="period"
+            markedDates={markedDates}
+            onDayPress={onDayPress}
+            theme={{
+              calendarBackground: "#FFFFFF",
+              textSectionTitleColor: "#37513f",
+              selectedDayBackgroundColor: "#4A3717",
+              selectedDayTextColor: "#FFFFFF",
+              todayTextColor: "#4A3717",
+              dayTextColor: "#2d4150",
+              arrowColor: "#4A3717",
+            }}
+          />
+
+          <Text style={styles.formLabel}>Tipo de hospedaje</Text>
+          {lodgingTypes.map((type) => (
+            <Pressable
+              key={type.id}
+              style={[
+                styles.checkboxRow,
+                selectedLodgingTypeId === type.id && styles.checkboxSelected,
+              ]}
+              onPress={() => {
+                setSelectedLodgingTypeId(type.id);
+                if (normalizeLabel(type.name) !== "especial") {
+                  setSelectedServiceQuantities({});
+                }
+              }}
+            >
+              <View style={styles.radioOuter}>
+                {selectedLodgingTypeId === type.id && (
+                  <View style={styles.radioInner} />
+                )}
+              </View>
+              <View style={styles.checkboxTextContainer}>
+                <Text style={styles.checkboxTitle}>
+                  {type.name} - ${type.price_for_night}/noche
+                </Text>
+                <Text style={styles.checkboxDescription}>
+                  {type.name === "Estándar"
+                    ? "Reservación Básica"
+                    : "Reservación con servicios especiales"}
+                </Text>
+              </View>
+            </Pressable>
+          ))}
+
+          {isSpecial && (
+            <>
+              <Text style={styles.formLabel}>Servicios Adicionales</Text>
+              {additionalServices.map((service) => {
+                const quantity = selectedServiceQuantities[service.id] || 0;
+                const isSelected = quantity > 0;
+
+                return (
+                  <Pressable
+                    key={service.id}
+                    style={styles.checkboxRow}
+                    onPress={() => toggleService(service.id)}
+                  >
+                    <View style={styles.checkboxBox}>
+                      {isSelected && <View style={styles.checkboxInner} />}
+                    </View>
+
+                    <View style={styles.serviceRowContent}>
+                      <View style={styles.serviceInfo}>
+                        <Text style={styles.checkboxTitle}>{service.name}</Text>
+                        <Text style={styles.checkboxDescription}>
+                          ${service.price} por servicio
+                        </Text>
+                      </View>
+
+                      {isSelected && (
+                        <View style={styles.quantityControls}>
+                          <Pressable
+                            style={styles.qtyButton}
+                            onPress={() =>
+                              changeServiceQuantity(service.id, -1)
+                            }
+                          >
+                            <Text style={styles.qtyButtonText}>-</Text>
+                          </Pressable>
+                          <Text style={styles.qtyValue}>{quantity}</Text>
+                          <Pressable
+                            style={styles.qtyButton}
+                            onPress={() => changeServiceQuantity(service.id, 1)}
+                          >
+                            <Text style={styles.qtyButtonText}>+</Text>
+                          </Pressable>
+                        </View>
+                      )}
+                    </View>
+                  </Pressable>
+                );
+              })}
+            </>
+          )}
+
+          <Pressable
+            style={[styles.submitButton, submitting && styles.disabledButton]}
+            onPress={handleSubmitReservation}
+            disabled={submitting}
+          >
+            {submitting ? (
+              <ActivityIndicator color="white" />
+            ) : (
+              <Text style={styles.submitText}>
+                {isEditingMode ? "Actualizar Reserva" : "Enviar Reserva"}
+              </Text>
+            )}
           </Pressable>
+
+          {isEditingMode && (
+            <>
+              <Pressable style={styles.cancelEditButton} onPress={cancelEdit}>
+                <Text style={styles.cancelEditText}>Cancelar edición</Text>
+              </Pressable>
+            </>
+          )}
         </>
-      )}
-    </ScrollView>
+      }
+    />
   );
 
   return (
-    <SafeAreaView style={{ flex: 1 }}>
+    <SafeAreaView style={{ flex: 1, backgroundColor: "#FFFFFF" }}>
       <View style={styles.container}>
         <Text style={styles.headerTitle}>Reservas</Text>
 
         <View style={styles.mainTabsContainer}>
           <Pressable
             style={[
-              styles.subTab,
-              activeMainTab === "historial" && styles.activeSubTab,
+              styles.selectorButton,
+              styles.selectorButtonMain,
+              activeMainTab === "historial" && styles.activeSelectorButton,
             ]}
             onPress={() => setActiveMainTab("historial")}
           >
             <Text
               style={[
-                styles.subTabText,
-                activeMainTab === "historial" && styles.activeSubTabText,
+                styles.selectorButtonTextMain,
+                activeMainTab === "historial" &&
+                  styles.activeSelectorButtonText,
               ]}
             >
               Historial
@@ -811,15 +1024,16 @@ export default function HomeScreen() {
 
           <Pressable
             style={[
-              styles.subTab,
-              activeMainTab === "nueva" && styles.activeSubTab,
+              styles.selectorButton,
+              styles.selectorButtonMain,
+              activeMainTab === "nueva" && styles.activeSelectorButton,
             ]}
             onPress={() => setActiveMainTab("nueva")}
           >
             <Text
               style={[
-                styles.subTabText,
-                activeMainTab === "nueva" && styles.activeSubTabText,
+                styles.selectorButtonTextMain,
+                activeMainTab === "nueva" && styles.activeSelectorButtonText,
               ]}
             >
               Nueva
@@ -827,40 +1041,55 @@ export default function HomeScreen() {
           </Pressable>
         </View>
 
-        <ScrollView
-          refreshControl={
-            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
-          }
-          style={styles.content}
-        >
+        <View style={[styles.content, { paddingBottom: 0 }]}>
           {activeMainTab === "historial" ? renderHistorial() : renderNueva()}
-        </ScrollView>
+        </View>
       </View>
+
+      <Modal
+        animationType="fade"
+        transparent={true}
+        visible={cancelModalVisible}
+        onRequestClose={handleCloseModal}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>Cancelar Reserva</Text>
+            <Text style={styles.modalMessage}>
+              ¿Estás seguro de que deseas cancelar esta reserva?
+            </Text>
+            <View style={styles.modalButtons}>
+              <Pressable
+                style={[styles.modalButton, styles.modalButtonCancel]}
+                onPress={handleCloseModal}
+              >
+                <Text style={styles.modalButtonCancelText}>No</Text>
+              </Pressable>
+              <Pressable
+                style={[styles.modalButton, styles.modalButtonConfirm]}
+                onPress={handleConfirmCancel}
+              >
+                <Text style={styles.modalButtonConfirmText}>Sí, cancelar</Text>
+              </Pressable>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
   headerTitle: {
-    fontSize: 28,
+    fontSize: 32,
     fontWeight: "bold",
     color: "#37513f",
-    marginVertical: 10,
+    marginTop: 16,
+    marginBottom: 14,
     textAlign: "center",
   },
   container: { flex: 1, backgroundColor: "#FFFFFF" },
   mainTabsContainer: {
-    flexDirection: "row",
-    justifyContent: "space-evenly",
-    paddingVertical: 4,
-    paddingHorizontal: 4,
-    backgroundColor: "#e4e4e4ff",
-    marginTop: 5,
-    marginBottom: 10,
-    marginHorizontal: 20,
-    borderRadius: 20,
-  },
-  subTabsContainer: {
     flexDirection: "row",
     justifyContent: "space-between",
     paddingVertical: 4,
@@ -871,15 +1100,41 @@ const styles = StyleSheet.create({
     marginHorizontal: 5,
     borderRadius: 20,
   },
-  subTab: {
-    flex: 1,
+  selectorContainer: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    justifyContent: "space-between",
+    paddingVertical: 4,
+    paddingHorizontal: 4,
+    backgroundColor: "#e4e4e4ff",
+    marginTop: 5,
+    marginBottom: 10,
+    marginHorizontal: 5,
+    borderRadius: 20,
+  },
+  selectorButton: {
     paddingVertical: 6,
     paddingHorizontal: 10,
     borderRadius: 20,
+    marginVertical: 2,
   },
-  activeSubTab: { flex: 1, backgroundColor: "#ffffffff" },
-  subTabText: { fontSize: 11, color: "#555", textAlign: "center" },
-  activeSubTabText: { color: "#000000ff", fontWeight: "bold" },
+  selectorButtonMain: {
+    flexBasis: "49%",
+  },
+  selectorButtonStatusThird: {
+    flexBasis: "32%",
+  },
+  selectorButtonStatusHalf: {
+    flexBasis: "49%",
+  },
+  activeSelectorButton: { backgroundColor: "#ffffffff" },
+  selectorButtonTextMain: { fontSize: 13, color: "#555", textAlign: "center" },
+  selectorButtonTextStatus: {
+    fontSize: 13,
+    color: "#555",
+    textAlign: "center",
+  },
+  activeSelectorButtonText: { color: "#000000ff", fontWeight: "bold" },
   content: { flex: 1, paddingHorizontal: 16 },
   loader: { marginTop: 40 },
   emptyText: { textAlign: "center", marginTop: 40, color: "#888" },
@@ -889,10 +1144,18 @@ const styles = StyleSheet.create({
     padding: 16,
     marginBottom: 16,
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+    elevation: 7,
+  },
+  cancelIcon: {
+    position: "absolute",
+    top: 12,
+    right: 12,
+    zIndex: 9999,
+    elevation: 10,
+    padding: 4,
   },
   petNameCenter: {
     fontSize: 20,
@@ -967,7 +1230,7 @@ const styles = StyleSheet.create({
   editHint: {
     marginTop: 12,
     fontSize: 12,
-    color: "#666",
+    color: "#2E7D32",
     textAlign: "center",
     fontStyle: "italic",
   },
@@ -1000,6 +1263,10 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
     marginBottom: 12,
     marginHorizontal: 5,
+  },
+  dropdownText: {
+    fontSize: 13,
+    color: "#555",
   },
   checkboxRow: {
     flexDirection: "row",
@@ -1042,6 +1309,42 @@ const styles = StyleSheet.create({
     borderRadius: 2,
   },
   checkboxTextContainer: { flex: 1 },
+  serviceRowContent: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+  serviceInfo: {
+    flex: 1,
+    marginRight: 8,
+  },
+  quantityControls: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
+  qtyButton: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: "#4A3717",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  qtyButtonText: {
+    color: "#FFFFFF",
+    fontWeight: "bold",
+    fontSize: 16,
+    lineHeight: 18,
+  },
+  qtyValue: {
+    minWidth: 18,
+    textAlign: "center",
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#1E1E1E",
+  },
   checkboxTitle: { fontSize: 16, fontWeight: "500", color: "#1E1E1E" },
   checkboxDescription: { fontSize: 12, color: "#888" },
   submitButton: {
@@ -1076,4 +1379,63 @@ const styles = StyleSheet.create({
     marginBottom: 10,
   },
   deleteButtonText: { color: "#FFFFFF", fontWeight: "bold" },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0, 0, 0, 0.5)",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  modalContent: {
+    width: "80%",
+    backgroundColor: "white",
+    borderRadius: 16,
+    padding: 24,
+    alignItems: "center",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
+    elevation: 5,
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: "bold",
+    color: "#37513f",
+    marginBottom: 12,
+  },
+  modalMessage: {
+    fontSize: 16,
+    color: "#555",
+    textAlign: "center",
+    marginBottom: 24,
+    lineHeight: 22,
+  },
+  modalButtons: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    width: "100%",
+  },
+  modalButton: {
+    flex: 1,
+    paddingVertical: 12,
+    borderRadius: 8,
+    alignItems: "center",
+    marginHorizontal: 8,
+  },
+  modalButtonCancel: {
+    backgroundColor: "#e4e4e4",
+  },
+  modalButtonCancelText: {
+    color: "#555",
+    fontWeight: "bold",
+    fontSize: 16,
+  },
+  modalButtonConfirm: {
+    backgroundColor: "#D9534F",
+  },
+  modalButtonConfirmText: {
+    color: "white",
+    fontWeight: "bold",
+    fontSize: 16,
+  },
 });
