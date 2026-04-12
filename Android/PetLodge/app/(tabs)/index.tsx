@@ -1,11 +1,21 @@
-import { View, Text, Pressable, StyleSheet, Alert, ScrollView, Image, TextInput, ActivityIndicator } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { useFocusEffect, router } from 'expo-router';
-import { useAuth } from '../../constants/AuthContext';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import { useCallback, useState, useEffect } from 'react';
-import * as ImagePicker from 'expo-image-picker';
-import { Ionicons } from '@expo/vector-icons';
+import { Ionicons } from "@expo/vector-icons";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import * as ImagePicker from "expo-image-picker";
+import { router, useFocusEffect } from "expo-router";
+import { useCallback, useState } from "react";
+import {
+    ActivityIndicator,
+    Alert,
+    Image,
+    Pressable,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TextInput,
+    View,
+} from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
+import { useAuth } from "../../constants/AuthContext";
 
 // Tipo para los datos del perfil
 type Profile = {
@@ -19,50 +29,50 @@ type Profile = {
 
 // Perfil falso por defecto (se usará si no hay ninguno guardado)
 const DEFAULT_PROFILE: Profile = {
-  nombre: 'Ana',
-  cedula: '123456789',
-  email: 'ana.garcia@example.com',
-  telefono: '61234567',
-  direccion: 'Calle Principal 123, Madrid',
-  profileImage: '',
+  nombre: "Ana",
+  cedula: "123456789",
+  email: "ana.garcia@example.com",
+  telefono: "61234567",
+  direccion: "Calle Principal 123, Madrid",
+  profileImage: "",
 };
 
 export default function HomeScreen() {
-  const { user, logout } = useAuth();
+  const { session, signOut } = useAuth();
   const [petCount, setPetCount] = useState(0);
   const [loading, setLoading] = useState(false);
 
   // Estado local del perfil
   const [profile, setProfile] = useState<Profile>(DEFAULT_PROFILE);
   // Estado para edición
-  const [editNombre, setEditNombre] = useState('');
-  const [editCedula, setEditCedula] = useState('');
-  const [editEmail, setEditEmail] = useState('');
-  const [editTelefono, setEditTelefono] = useState('');
-  const [editDireccion, setEditDireccion] = useState('');
-  const [editProfileImage, setEditProfileImage] = useState('');
+  const [editNombre, setEditNombre] = useState("");
+  const [editCedula, setEditCedula] = useState("");
+  const [editEmail, setEditEmail] = useState("");
+  const [editTelefono, setEditTelefono] = useState("");
+  const [editDireccion, setEditDireccion] = useState("");
+  const [editProfileImage, setEditProfileImage] = useState("");
 
   // Cargar perfil desde AsyncStorage
   const loadProfile = async () => {
     try {
-      const storedProfile = await AsyncStorage.getItem('profile');
+      const storedProfile = await AsyncStorage.getItem("profile");
       if (storedProfile) {
         const parsed = JSON.parse(storedProfile);
         setProfile(parsed);
       } else {
         // Si no existe, guardamos el perfil por defecto
-        await AsyncStorage.setItem('profile', JSON.stringify(DEFAULT_PROFILE));
+        await AsyncStorage.setItem("profile", JSON.stringify(DEFAULT_PROFILE));
         setProfile(DEFAULT_PROFILE);
       }
     } catch (error) {
-      console.error('Error loading profile:', error);
+      console.error("Error loading profile:", error);
     }
   };
 
   // Cargar cantidad de mascotas (ejemplo)
   const loadPetCount = async () => {
     try {
-      const petsJson = await AsyncStorage.getItem('pets');
+      const petsJson = await AsyncStorage.getItem("pets");
       const pets = petsJson ? JSON.parse(petsJson) : [];
       setPetCount(pets.length);
     } catch (error) {
@@ -80,13 +90,13 @@ export default function HomeScreen() {
       setEditTelefono(profile.telefono);
       setEditDireccion(profile.direccion);
       setEditProfileImage(profile.profileImage);
-    }, [])
+    }, []),
   );
 
   const handleChangeProfileImage = async () => {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (status !== 'granted') {
-      Alert.alert('Permiso denegado', 'Necesitamos acceso a tu galería.');
+    if (status !== "granted") {
+      Alert.alert("Permiso denegado", "Necesitamos acceso a tu galería.");
       return;
     }
     const result = await ImagePicker.launchImageLibraryAsync({
@@ -102,25 +112,28 @@ export default function HomeScreen() {
 
   const handleNombreChange = (text: string) => {
     // Permite solo letras y espacios
-    const sanitized = text.replace(/[^A-Za-zÁÉÍÓÚÜÑáéíóúüñ\s]/g, '');
+    const sanitized = text.replace(/[^A-Za-zÁÉÍÓÚÜÑáéíóúüñ\s]/g, "");
     setEditNombre(sanitized);
   };
 
   const handleCedulaChange = (text: string) => {
     // Solo números, sin límite superior aquí; se valida en guardar
-    const sanitized = text.replace(/\D/g, '');
+    const sanitized = text.replace(/\D/g, "");
     setEditCedula(sanitized);
   };
 
   const handleTelefonoChange = (text: string) => {
     // Solo números y máximo 8 dígitos
-    const sanitized = text.replace(/\D/g, '').slice(0, 8);
+    const sanitized = text.replace(/\D/g, "").slice(0, 8);
     setEditTelefono(sanitized);
   };
 
   const isValidNombre = (value: string) => {
     const trimmed = value.trim();
-    return /^[A-Za-zÁÉÍÓÚÜÑáéíóúüñ\s]+$/.test(trimmed) && /[A-Za-zÁÉÍÓÚÜÑáéíóúüñ]/.test(trimmed);
+    return (
+      /^[A-Za-zÁÉÍÓÚÜÑáéíóúüñ\s]+$/.test(trimmed) &&
+      /[A-Za-zÁÉÍÓÚÜÑáéíóúüñ]/.test(trimmed)
+    );
   };
 
   const isValidCedula = (value: string) => {
@@ -139,28 +152,40 @@ export default function HomeScreen() {
   };
 
   const handleSave = async () => {
-    if (!editNombre.trim() || !editCedula.trim() || !editEmail.trim() || !editTelefono.trim() || !editDireccion.trim()) {
-      Alert.alert('Error', 'Todos los campos son obligatorios');
+    if (
+      !editNombre.trim() ||
+      !editCedula.trim() ||
+      !editEmail.trim() ||
+      !editTelefono.trim() ||
+      !editDireccion.trim()
+    ) {
+      Alert.alert("Error", "Todos los campos son obligatorios");
       return;
     }
 
     if (!isValidNombre(editNombre)) {
-      Alert.alert('Error', 'El nombre solo puede contener letras');
+      Alert.alert("Error", "El nombre solo puede contener letras");
       return;
     }
 
     if (!isValidCedula(editCedula)) {
-      Alert.alert('Error', 'La cédula debe contener solo números y mínimo 9 dígitos');
+      Alert.alert(
+        "Error",
+        "La cédula debe contener solo números y mínimo 9 dígitos",
+      );
       return;
     }
 
     if (!isValidEmail(editEmail)) {
-      Alert.alert('Error', 'El email no tiene un formato válido');
+      Alert.alert("Error", "El email no tiene un formato válido");
       return;
     }
 
     if (!isValidTelefono(editTelefono)) {
-      Alert.alert('Error', 'El teléfono debe contener solo 8 dígitos numéricos');
+      Alert.alert(
+        "Error",
+        "El teléfono debe contener solo 8 dígitos numéricos",
+      );
       return;
     }
 
@@ -174,11 +199,11 @@ export default function HomeScreen() {
       profileImage: editProfileImage,
     };
     try {
-      await AsyncStorage.setItem('profile', JSON.stringify(updatedProfile));
+      await AsyncStorage.setItem("profile", JSON.stringify(updatedProfile));
       setProfile(updatedProfile);
-      Alert.alert('Éxito', 'Perfil actualizado correctamente');
+      Alert.alert("Éxito", "Perfil actualizado correctamente");
     } catch (error) {
-      Alert.alert('Error', 'No se pudo guardar el perfil');
+      Alert.alert("Error", "No se pudo guardar el perfil");
     } finally {
       setLoading(false);
     }
@@ -187,17 +212,23 @@ export default function HomeScreen() {
   const displayName = profile.nombre;
 
   const goToMascotas = () => {
-    router.push('/mascotas');
+    router.push("/mascotas");
   };
 
   const change_password = () => {
-    router.push('/change_password');
+    router.push("/change_password");
   };
 
   const confirmLogout = () => {
-    Alert.alert('Cerrar sesión', '¿Estás seguro?', [
-      { text: 'Cancelar', style: 'cancel' },
-      { text: 'Sí, cerrar', onPress: logout },
+    Alert.alert("Cerrar sesión", "¿Estás seguro?", [
+      { text: "Cancelar", style: "cancel" },
+      {
+        text: "Sí, cerrar",
+        onPress: () => {
+          signOut();
+          router.replace("/(auth)/login");
+        },
+      },
     ]);
   };
 
@@ -206,14 +237,22 @@ export default function HomeScreen() {
       <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
         <Text style={styles.headerTitle}>Perfil</Text>
         {/* Foto de perfil */}
-        <Pressable onPress={handleChangeProfileImage} style={styles.avatarContainer}>
+        <Pressable
+          onPress={handleChangeProfileImage}
+          style={styles.avatarContainer}
+        >
           {editProfileImage ? (
             <Image source={{ uri: editProfileImage }} style={styles.avatar} />
           ) : profile.profileImage ? (
-            <Image source={{ uri: profile.profileImage }} style={styles.avatar} />
+            <Image
+              source={{ uri: profile.profileImage }}
+              style={styles.avatar}
+            />
           ) : (
             <View style={styles.avatarPlaceholder}>
-              <Text style={styles.avatarInitial}>{displayName.charAt(0).toUpperCase()}</Text>
+              <Text style={styles.avatarInitial}>
+                {displayName.charAt(0).toUpperCase()}
+              </Text>
             </View>
           )}
           {<Text style={styles.changePhotoText}>Cambiar foto</Text>}
@@ -222,7 +261,8 @@ export default function HomeScreen() {
         {/* Tarjeta de mascotas */}
         <Pressable style={styles.petCard} onPress={goToMascotas}>
           <Text style={styles.petCount}>
-            {petCount} {petCount === 1 ? 'mascota registrada' : 'mascotas registradas'}
+            {petCount}{" "}
+            {petCount === 1 ? "mascota registrada" : "mascotas registradas"}
           </Text>
           <Text style={styles.verMascotasLink}>Ver mascotas</Text>
         </Pressable>
@@ -284,7 +324,11 @@ export default function HomeScreen() {
               onPress={handleSave}
               disabled={loading}
             >
-              {loading ? <ActivityIndicator color="#FFFFFF" /> : <Text style={styles.buttonText}>Guardar</Text>}
+              {loading ? (
+                <ActivityIndicator color="#FFFFFF" />
+              ) : (
+                <Text style={styles.buttonText}>Guardar</Text>
+              )}
             </Pressable>
             <Pressable
               style={[styles.buttonHalf, styles.buttonCerrarSesion]}
@@ -309,7 +353,14 @@ function InfoRow({ label, value }: { label: string; value: string }) {
   );
 }
 
-function EditRow({ label, value, onChangeText, placeholder, keyboardType = 'default', autoCapitalize = 'sentences' }: any) {
+function EditRow({
+  label,
+  value,
+  onChangeText,
+  placeholder,
+  keyboardType = "default",
+  autoCapitalize = "sentences",
+}: any) {
   return (
     <View style={styles.editRow}>
       <Ionicons name="person" size={15} color="#676767" />
@@ -326,121 +377,180 @@ function EditRow({ label, value, onChangeText, placeholder, keyboardType = 'defa
   );
 }
 
-
-
-
-
-
-
-
-
 const styles = StyleSheet.create({
-  headerTitle: { fontSize: 28, fontWeight: 'bold', color: '#37513f', marginVertical: 10, textAlign: 'center' },
+  headerTitle: {
+    fontSize: 28,
+    fontWeight: "bold",
+    color: "#37513f",
+    marginVertical: 10,
+    textAlign: "center",
+  },
   button: {
-    backgroundColor: '#4A3717',
+    backgroundColor: "#4A3717",
     padding: 10,
     marginTop: 5,
-    alignItems: 'center',
+    alignItems: "center",
     borderRadius: 5,
   },
   textButton: {
-    color: '#FFFFFF',
+    color: "#FFFFFF",
     fontSize: 16,
-    fontWeight: '600'
+    fontWeight: "600",
   },
 
   input: {
     borderWidth: 1,
-    borderColor: '#A8A8A9',
-    backgroundColor: '#f3f3f3',
-    color: '#676767',
+    borderColor: "#A8A8A9",
+    backgroundColor: "#f3f3f3",
+    color: "#676767",
     marginBottom: 10,
     padding: 10,
     borderRadius: 5,
   },
   avatarContainer: {
-    alignItems: 'center',
-    marginBottom: 5
+    alignItems: "center",
+    marginBottom: 5,
   },
   petCard: {
     borderRadius: 12,
     padding: 16,
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-    alignItems: 'center',
+    flexDirection: "row",
+    justifyContent: "space-around",
+    alignItems: "center",
   },
   petCount: {
     fontSize: 12,
   },
   verMascotasLink: {
     fontSize: 12,
-    color: '#4e6e58',
-    fontWeight: '500'
+    color: "#4e6e58",
+    fontWeight: "500",
   },
   infoContainer: {
     marginBottom: 10,
   },
   infoRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    backgroundColor: '#f9f9f9',   // fondo suave
-    borderRadius: 12,              // bordes redondeados
-    borderBottomColor: '#F0F0F0',
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    backgroundColor: "#f9f9f9", // fondo suave
+    borderRadius: 12, // bordes redondeados
+    borderBottomColor: "#F0F0F0",
     paddingVertical: 14,
     paddingHorizontal: 16,
-    marginBottom: 12,              // separación vertical entre filas
+    marginBottom: 12, // separación vertical entre filas
   },
   editRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#f9f9f9',
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#f9f9f9",
     borderRadius: 12,
     paddingVertical: 6,
     paddingHorizontal: 16,
     marginBottom: 12,
     borderWidth: 1,
-    borderColor: '#d6d6d6ff',
+    borderColor: "#d6d6d6ff",
   },
   editInput: {
     flex: 1,
     borderWidth: 1,
-    borderColor: '#d6d6d6a9',
+    borderColor: "#d6d6d6a9",
     borderRadius: 6,
     paddingVertical: 8,
     paddingHorizontal: 10,
     fontSize: 15,
-    color: '#1E1E1E',
-    marginLeft: 10
+    color: "#1E1E1E",
+    marginLeft: 10,
   },
-  container: { flex: 1, backgroundColor: '#FFFFFF', paddingHorizontal: 20, paddingTop: 20 },
-  avatar: { width: 100, height: 100, borderRadius: 50, backgroundColor: '#E0E0E0' },
-  avatarPlaceholder: { width: 100, height: 100, borderRadius: 50, backgroundColor: '#4A3717', justifyContent: 'center', alignItems: 'center' },
-  avatarInitial: { fontSize: 40, color: '#FFFFFF', fontWeight: 'bold' },
-  changePhotoText: { marginTop: 8, fontSize: 14, color: '#4e6e58', textDecorationLine: 'underline' },
-  infoLabel: { fontSize: 15, color: '#676767', fontWeight: '500', width: '30%' },
-  infoValue: { fontSize: 15, color: '#1E1E1E', fontWeight: '400', flexShrink: 1, textAlign: 'right', width: '70%' },
-  buttonEdit: { backgroundColor: '#4A3717', paddingVertical: 14, borderRadius: 8, alignItems: 'center', marginBottom: 12 },
-  buttonEditText: { color: '#FFFFFF', fontSize: 16, fontWeight: '600' },
-  buttonDanger: { backgroundColor: '#FFFFFF', paddingVertical: 14, borderRadius: 8, alignItems: 'center', borderWidth: 1, borderColor: '#E53935', marginBottom: 30 },
-  buttonDangerText: { color: '#E53935', fontSize: 16, fontWeight: '600' },
-  editButtonsContainer: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 30, gap: 12 },
-  buttonSaveText: { color: '#FFFFFF', fontSize: 16, fontWeight: '600' },
-  buttonCancel: { flex: 1, backgroundColor: '#FFFFFF', paddingVertical: 14, borderRadius: 8, alignItems: 'center', borderWidth: 1, borderColor: '#A8A8A9' },
-  buttonCancelText: { color: '#676767', fontSize: 16, fontWeight: '600' },
-    buttonContainer: {
+  container: {
+    flex: 1,
+    backgroundColor: "#FFFFFF",
+    paddingHorizontal: 20,
+    paddingTop: 20,
+  },
+  avatar: {
+    width: 100,
+    height: 100,
+    borderRadius: 50,
+    backgroundColor: "#E0E0E0",
+  },
+  avatarPlaceholder: {
+    width: 100,
+    height: 100,
+    borderRadius: 50,
+    backgroundColor: "#4A3717",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  avatarInitial: { fontSize: 40, color: "#FFFFFF", fontWeight: "bold" },
+  changePhotoText: {
+    marginTop: 8,
+    fontSize: 14,
+    color: "#4e6e58",
+    textDecorationLine: "underline",
+  },
+  infoLabel: {
+    fontSize: 15,
+    color: "#676767",
+    fontWeight: "500",
+    width: "30%",
+  },
+  infoValue: {
+    fontSize: 15,
+    color: "#1E1E1E",
+    fontWeight: "400",
+    flexShrink: 1,
+    textAlign: "right",
+    width: "70%",
+  },
+  buttonEdit: {
+    backgroundColor: "#4A3717",
+    paddingVertical: 14,
+    borderRadius: 8,
+    alignItems: "center",
+    marginBottom: 12,
+  },
+  buttonEditText: { color: "#FFFFFF", fontSize: 16, fontWeight: "600" },
+  buttonDanger: {
+    backgroundColor: "#FFFFFF",
+    paddingVertical: 14,
+    borderRadius: 8,
+    alignItems: "center",
+    borderWidth: 1,
+    borderColor: "#E53935",
+    marginBottom: 30,
+  },
+  buttonDangerText: { color: "#E53935", fontSize: 16, fontWeight: "600" },
+  editButtonsContainer: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    marginBottom: 30,
+    gap: 12,
+  },
+  buttonSaveText: { color: "#FFFFFF", fontSize: 16, fontWeight: "600" },
+  buttonCancel: {
+    flex: 1,
+    backgroundColor: "#FFFFFF",
+    paddingVertical: 14,
+    borderRadius: 8,
+    alignItems: "center",
+    borderWidth: 1,
+    borderColor: "#A8A8A9",
+  },
+  buttonCancelText: { color: "#676767", fontSize: 16, fontWeight: "600" },
+  buttonContainer: {
     marginTop: 10,
     gap: 12,
   },
   buttonFullWidth: {
-    backgroundColor: '#4A3717',
+    backgroundColor: "#4A3717",
     paddingVertical: 14,
     borderRadius: 8,
-    alignItems: 'center',
+    alignItems: "center",
   },
   rowButtons: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
+    flexDirection: "row",
+    justifyContent: "space-between",
     gap: 12,
     marginBottom: 50,
   },
@@ -448,17 +558,17 @@ const styles = StyleSheet.create({
     flex: 1,
     paddingVertical: 14,
     borderRadius: 8,
-    alignItems: 'center',
+    alignItems: "center",
   },
   buttonSave: {
-    backgroundColor: '#4A3717',
+    backgroundColor: "#4A3717",
   },
   buttonCerrarSesion: {
-    backgroundColor: '#E53935',
+    backgroundColor: "#E53935",
   },
   buttonText: {
-    color: '#FFFFFF',
+    color: "#FFFFFF",
     fontSize: 16,
-    fontWeight: '600',
+    fontWeight: "600",
   },
 });

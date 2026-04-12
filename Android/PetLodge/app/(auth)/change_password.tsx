@@ -1,18 +1,11 @@
-import { Image } from "expo-image";
-import { Platform, StyleSheet } from "react-native";
+import { Alert, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
 
-import { HelloWave } from "@/components/hello-wave";
-import ParallaxScrollView from "@/components/parallax-scroll-view";
-import { ThemedText } from "@/components/themed-text";
-import { ThemedView } from "@/components/themed-view";
-import { View, Text, TextInput, Pressable } from "react-native";
+
 import { useState } from "react";
-import { Alert } from "react-native";
+
 import Entypo from "@expo/vector-icons/Entypo";
 
 //Navegación
-import { router } from "expo-router";
-import { Link } from "expo-router";
 
 const numerosYletras = (texto: string, nombreCampo: string): boolean => {
   if (/^[A-Za-z0-9]*$/.test(texto)) {
@@ -20,7 +13,7 @@ const numerosYletras = (texto: string, nombreCampo: string): boolean => {
   } else {
     Alert.alert(
       "Error",
-      "No se permiten caracteres especiales en " + nombreCampo
+      "No se permiten caracteres especiales en " + nombreCampo,
     );
     return false;
   }
@@ -63,31 +56,31 @@ export default function HomeScreen() {
       </View>
       <View style={styles.inputContainer}>
         <Entypo name="lock" size={24} color="black" style={styles.icon} />
-      <TextInput
-        style={styles.input}
-        placeholder="Nueva contraseña"
-        value={newPassword}
-        secureTextEntry
-        onChangeText={(text) => {
-          if (numerosYletras(text, "nueva contraseña")) {
-            setnewPassword(text);
-          }
-        }}
-      />
+        <TextInput
+          style={styles.input}
+          placeholder="Nueva contraseña"
+          value={newPassword}
+          secureTextEntry
+          onChangeText={(text) => {
+            if (numerosYletras(text, "nueva contraseña")) {
+              setnewPassword(text);
+            }
+          }}
+        />
       </View>
       <View style={styles.inputContainer}>
         <Entypo name="lock" size={24} color="black" style={styles.icon} />
-      <TextInput
-        style={styles.input}
-        placeholder="Confirmar contraseña"
-        value={confirmPassword}
-        secureTextEntry
-        onChangeText={(text) => {
-          if (numerosYletras(text, "confirmar contraseña")) {
-            setconfirmPassword(text);
-          }
-        }}
-      />
+        <TextInput
+          style={styles.input}
+          placeholder="Confirmar contraseña"
+          value={confirmPassword}
+          secureTextEntry
+          onChangeText={(text) => {
+            if (numerosYletras(text, "confirmar contraseña")) {
+              setconfirmPassword(text);
+            }
+          }}
+        />
       </View>
 
       <Pressable style={styles.button} onPress={handleConfirmar}>
