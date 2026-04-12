@@ -7,6 +7,7 @@ import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { View, Text, TextInput, Pressable } from 'react-native';
 import { useState } from 'react';
+import { Ionicons } from "@expo/vector-icons";
 
 //Navegación
 import { router } from 'expo-router';
@@ -21,14 +22,15 @@ export default function HomeScreen() {
   return (
     <View style={styles.container}>
       <Text style={styles.titleContainer}>¿Olvidaste tu contraseña?</Text>
-
+<View style={styles.inputContainer}>
+        <Ionicons name="mail" size={20} color="gray" style={styles.icon} />
       <TextInput
         style={styles.input}
         placeholder="Email"
         value={email}
         onChangeText={setEmail}
       />
-
+</View>
     <Text style={styles.text}>*Le enviaremos un mensaje para que restablezca su contraseña</Text>
 
 
@@ -43,6 +45,23 @@ export default function HomeScreen() {
 }
 
 const styles = StyleSheet.create({
+  icon: {
+    marginRight: 8,
+  },
+  inputContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    borderWidth: 1,
+    borderColor: "#ccc",
+    borderRadius: 8,
+    paddingHorizontal: 10,
+    backgroundColor: "#f3f3f3",
+  },
+  input: {
+    flex: 1,
+    height: 40,
+    color: "#676767",
+  },
   container: {
     flex: 1,
     backgroundColor: '#ffffff', 
@@ -56,16 +75,7 @@ const styles = StyleSheet.create({
    fontSize: 30,
     gap: 8,
     fontWeight: 'bold'
-  },
-  input: {
-    borderWidth: 1,
-    borderColor: '#A8A8A9',
-    backgroundColor: '#f3f3f3', 
-    color: '#676767',
-    marginBottom: 10,
-    padding: 10,
-    borderRadius: 5,
-  },
+  },  
   button: {
     backgroundColor: '#4A3717',
     padding: 15,

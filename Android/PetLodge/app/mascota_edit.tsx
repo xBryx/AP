@@ -284,6 +284,11 @@ if (!noNulos(nombre)) {
 }
 
 const styles = StyleSheet.create({
+  icon: {
+    position: "absolute",
+    left: 10,
+    top: 10,
+  },
   container: {
     flex: 1,
     backgroundColor: "#ffffff",
