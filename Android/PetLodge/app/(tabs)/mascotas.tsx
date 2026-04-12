@@ -14,7 +14,39 @@ import { FlatList } from "react-native";
 import { ScrollView } from "react-native";
 import * as ImagePicker from "expo-image-picker";
 import { useRouter } from "expo-router";
+import { Alert } from "react-native";
 
+const noNulos = (texto: string): boolean => {
+  return texto.trim() !== "";
+};
+
+const soloLetras = (texto: string, nombreCampo: string): boolean => {
+  if (/^[A-Za-z]*$/.test(texto)) {
+    return true;
+  } else {
+    Alert.alert("Error", "Solo se permiten letras en " + nombreCampo);
+    return false;
+  }
+};
+const soloNumeros = (numero: string, nombreCampo: string): boolean => {
+  if (/^[0-9]*$/.test(numero)) {
+    return true;
+  } else {
+    Alert.alert("Error", "Solo se permiten números en " + nombreCampo);
+    return false;
+  }
+};
+const numerosYletras = (texto: string, nombreCampo: string): boolean => {
+  if (/^[A-Za-z0-9]*$/.test(texto)) {
+    return true;
+  } else {
+    Alert.alert(
+      "Error",
+      "No se permiten caracteres especiales en " + nombreCampo
+    );
+    return false;
+  }
+};
 export default function HomeScreen() {
   const [mascotas, setMascotas] = useState([
     {
@@ -67,31 +99,54 @@ export default function HomeScreen() {
   };
 
   const [nombre, setNombre] = useState("");
-  const [especie, setEspecie] = useState("");
+  const [especie, setEspecie] = useState("perro");
   const [raza, setRaza] = useState("");
-  const [edad, setEdad] = useState("");
-  const [sexo, setSexo] = useState("");
+  const [edad, setEdad] = useState<number>(1);
+  const [sexo, setSexo] = useState("macho");
   const [tamano, setTamano] = useState("mediano");
   const [vacunas, setVacunas] = useState(false);
   const [notaVacunas, setNotaVacunas] = useState("");
   const [condMedicas, setcondMedicas] = useState(false);
   const [notaCondMedicas, setNotasCondMedicas] = useState("");
   const [vetNombre, setVetNombre] = useState("");
-  const [vetContacto, setVetContacto] = useState("");
+  const [vetContacto, setVetContacto] = useState<number>(0);
   const [nota, setNota] = useState("");
   const [petImage, setPetImage] = useState("");
 
   const handleAddMascota = () => {
+if (!noNulos(nombre)) {
+      Alert.alert("Error", "No se permiten nulos en nombre");
+      return;
+    } else if (!noNulos(especie)) {
+      Alert.alert("Error", "No se permiten nulos en apellido");
+      return;
+    } else if (!noNulos(raza)) {
+      Alert.alert("Error", "cedula");
+      return;
+    } else if (!noNulos(edad.toString())) {
+      Alert.alert("Error", "No se permiten nulos en teléfono");
+      return;
+    } else if (!noNulos(vetNombre)) {
+      Alert.alert("Error", "No se permiten nulos en email");
+      return;
+    } else if (!noNulos(vetContacto.toString())) {
+      Alert.alert("Error", "No se permiten nulos en teléfono");
+      return;
+    }
     const nuevaMascota = {
       nombre,
       especie,
       raza,
       edad,
+      sexo,
+      tamano,
       vacunas,
-      condicionesMedicas: "",
-      veterinario: vetNombre,
-      numeroVeterinario: vetContacto,
-      notas: nota,
+      notaVacunas,
+      condMedicas,
+      notaCondMedicas,
+      vetNombre,
+      vetContacto,
+      nota,
       profileImage: petImage,
     };
   };
@@ -210,7 +265,11 @@ export default function HomeScreen() {
             style={styles.input}
             placeholder="Nombre"
             value={nombre}
-            onChangeText={setNombre}
+            onChangeText={(text) => {
+              if (soloLetras(text, "nombre")) {
+                setNombre(text);
+              }
+            }}
           />
           {/* Especie */}
           <Picker
@@ -232,14 +291,22 @@ export default function HomeScreen() {
             style={styles.input}
             placeholder="Raza"
             value={raza}
-            onChangeText={setRaza}
+            onChangeText={(text) => {
+              if (soloLetras(text, "raza")) {
+                setRaza(text);
+              }
+            }}
           />
           {/* Edad */}
           <TextInput
             style={styles.input}
             placeholder="Edad"
-            value={edad}
-            onChangeText={setEdad}
+            value={edad.toString()}
+            onChangeText={(text) => {
+              if (soloNumeros(text, "edad")) {
+                setEdad(Number(text));
+              }
+            }}
           />
           {/* Sexo */}
           <Picker
@@ -268,7 +335,11 @@ export default function HomeScreen() {
               style={styles.input}
               placeholder="Especificar vacunas"
               value={notaVacunas}
-              onChangeText={setNotaVacunas}
+              onChangeText={(text) => {
+              if (numerosYletras(text, "vacunas")) {
+                setNotaVacunas(text);
+              }
+            }}
             />
           )}
           {/* Condiciones médicas */}
@@ -288,7 +359,11 @@ export default function HomeScreen() {
               style={styles.input}
               placeholder="Especificar condiciones médicas"
               value={notaCondMedicas}
-              onChangeText={setNotasCondMedicas}
+              onChangeText={(text) => {
+              if (numerosYletras(text, "condiciones médicas")) {
+                setNotasCondMedicas(text);
+              }
+            }}
             />
           )}
           {/* Tamaño */}
@@ -317,13 +392,21 @@ export default function HomeScreen() {
             style={styles.input}
             placeholder="Nombre del veterinario"
             value={vetNombre}
-            onChangeText={setVetNombre}
+            onChangeText={(text) => {
+              if (soloLetras(text, "veterinario")) {
+                setVetNombre(text);
+              }
+            }}
           />
           <TextInput
             style={styles.input}
             placeholder="Contacto del veterinario"
-            value={vetContacto}
-            onChangeText={setVetContacto}
+            value={vetContacto.toString()}
+            onChangeText={(text) => {
+              if (soloNumeros(text, "numero veterinario")) {
+                setVetContacto(Number(text));
+              }
+            }}
           />
           {/* Notas */}
           <TextInput

@@ -30,6 +30,9 @@ export const AuthProvider = ({ children }: any) => {
   //Lógica de login
   const login = async (username: string, password: string) => {
     // validación CAMBIAR ESTO LUEGO
+    if (!(/^[0-9]+$/.test(username)) || !(/^[0-9]+$/.test(password))){
+      return false
+    }
     if (username === "admin" && password === "1234") {
       await AsyncStorage.setItem("user", username);
       setUser(username);

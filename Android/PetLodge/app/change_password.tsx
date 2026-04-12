@@ -7,19 +7,47 @@ import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { View, Text, TextInput, Pressable } from 'react-native';
 import { useState } from 'react';
+import { Alert } from "react-native";
 
 //Navegación
 import { router } from 'expo-router';
 import { Link } from 'expo-router';
 
 
-
+const numerosYletras = (texto: string, nombreCampo: string): boolean => {
+  if (/^[A-Za-z0-9]*$/.test(texto)) {
+    return true;
+  } else {
+    Alert.alert(
+      "Error",
+      "No se permiten caracteres especiales en " + nombreCampo
+    );
+    return false;
+  }
+};
+const noNulos = (texto: string): boolean => {
+  return texto.trim() !== "";
+};
 export default function HomeScreen() {
   
   const [actualPassword, setactualPassword] = useState('');
   const [newPassword, setnewPassword] = useState('');
   const [confirmPassword, setconfirmPassword] = useState('');
-  
+    const handleConfirmar = () => {
+      if (!noNulos(actualPassword)) {
+        Alert.alert("Error", "No se permiten nulos en la contraseña actual");
+        return;
+      } else if (!noNulos(newPassword)) {
+        Alert.alert("Error", "No se permiten nulos en la nueva contraseña");
+        return;
+
+      } else if (!noNulos(confirmPassword)) {
+        Alert.alert("Error", "No se permiten nulos en confirmar contraseña");
+        return;
+
+      }
+      console.log("entro");
+    };
   return (
     <View style={styles.container}>
       <Text style={styles.titleContainer}>Cambiar contraseña</Text>
@@ -28,22 +56,36 @@ export default function HomeScreen() {
         style={styles.input}
         placeholder="Contraseña Actual"
         value={actualPassword}
-        onChangeText={setactualPassword}
+        secureTextEntry
+        onChangeText={(text) =>{
+          if (numerosYletras(text, "contraseña actual"))
+            setactualPassword(text);
+        }}
       />
       <TextInput
         style={styles.input}
         placeholder="Nueva contraseña"
         value={newPassword}
-        onChangeText={setnewPassword}
+        secureTextEntry
+        onChangeText={(text)=>{
+          if (numerosYletras(text, "nueva contraseña")){
+            setnewPassword(text)
+          }
+        }}
       />
       <TextInput
         style={styles.input}
         placeholder="Confirmar contraseña"
         value={confirmPassword}
-        onChangeText={setconfirmPassword}
+        secureTextEntry
+        onChangeText={(text)=>{
+          if(numerosYletras(text, "confirmar contraseña")){
+            setconfirmPassword(text);
+          }
+        }}
       />
 
-      <Pressable style={styles.button} onPress={null}>
+      <Pressable style={styles.button} onPress={handleConfirmar}>
         <Text style={styles.textButton}>Confirmar</Text>
       </Pressable>
             
