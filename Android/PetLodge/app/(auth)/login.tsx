@@ -7,6 +7,7 @@ import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { View, Text, TextInput, Pressable } from 'react-native';
 import { useState } from 'react';
+import { Alert } from "react-native";
 //Para el login
 import { useAuth } from '../../constants/AuthContext';
 
@@ -15,20 +16,44 @@ import { router } from 'expo-router';
 import { Link } from 'expo-router';
 
 
-
+const soloLetras = (texto: string, nombreCampo: string): boolean => {
+  if(/^[A-Za-z]+$/.test(texto)){
+    return true;
+  }else{
+    Alert.alert("Error", "Solo se permiten letras en " + nombreCampo);
+    return false
+  } 
+};
+const soloNumeros = (numero: string, nombreCampo: string): boolean => {
+  if(/^[0-9]+$/.test(numero)){
+    return true;
+  }else{
+    Alert.alert("Error", "Solo se permiten números en " + nombreCampo);
+    return false
+  } 
+};
+const numerosYletras = (texto: string, nombreCampo: string): boolean => {
+  if(/^[A-Za-z0-9]+$/.test(texto)){
+    return true;
+  }else{
+    Alert.alert("Error", "No se permiten caracteres especiales en " + nombreCampo);
+    return false
+  } 
+};
 
 
 export default function Login() {
   const { login } = useAuth();
 
+
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
 
-  const handleLogin = async () => {
+  const handleLogin = async () => {    
     const success = await login(username, password);
 
     if (success) {
-      router.replace('/(tabs)/perfil');
+      router.replace('/(tabs)');
     } else {
       alert('Usuario o contraseña incorrectos');
     }
@@ -47,6 +72,7 @@ export default function Login() {
 
       <TextInput
         style={styles.input}
+        
         placeholder="Contraseña"
         secureTextEntry
         value={password}
