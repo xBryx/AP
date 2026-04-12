@@ -1,4 +1,5 @@
 import { View, Text, Pressable, StyleSheet, Alert, ScrollView, Image, TextInput, ActivityIndicator } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect, router } from 'expo-router';
 import { useAuth } from '../../constants/AuthContext';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -152,7 +153,9 @@ export default function HomeScreen() {
   };
 
   return (
+    <SafeAreaView style={{ flex: 1 }}>
     <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
+      <Text style={styles.headerTitle}>Perfil</Text>
       {/* Foto de perfil */}
       <Pressable onPress={handleChangeProfileImage} style={styles.avatarContainer}>
         {editProfileImage ? (
@@ -172,7 +175,7 @@ export default function HomeScreen() {
         <Text style={styles.petCount}>
           {petCount} {petCount === 1 ? 'mascota registrada' : 'mascotas registradas'}
         </Text>
-        <Text style={styles.verMascotasLink}>Ver mascotas →</Text>
+        <Text style={styles.verMascotasLink}>Ver mascotas</Text>
       </Pressable>
 
       {/* Datos del perfil */}
@@ -189,21 +192,6 @@ export default function HomeScreen() {
       </View>
 
       {/* Botones */}
-      {/* {
-        <>
-          <Pressable style={styles.buttonSave} onPress={change_password}>
-            <Text style={styles.textButton}>Cambiar Contraseña</Text>
-          </Pressable>
-          <Pressable style={styles.buttonSave} onPress={handleSave} disabled={loading}>
-            {loading ? <ActivityIndicator color="#FFFFFF" /> : <Text style={styles.buttonSaveText}>Guardar</Text>}
-          </Pressable>
-          <Pressable style={styles.buttonCerrarSesion} onPress={confirmLogout}>
-            <Text style={styles.textButton}>Cerrar Sesión</Text>
-          </Pressable>
-          
-        </>
-      } */}
-
       <View style={styles.buttonContainer}>
         {/* Botón Cambiar Contraseña - ancho completo */}
         <Pressable style={styles.buttonFullWidth} onPress={change_password}>
@@ -228,6 +216,7 @@ export default function HomeScreen() {
         </View>
       </View>
     </ScrollView>
+    </SafeAreaView>
   );
 }
 
@@ -258,6 +247,7 @@ function EditRow({ label, value, onChangeText, placeholder, keyboardType = 'defa
 }
 
 const styles = StyleSheet.create({
+  headerTitle: { fontSize: 28, fontWeight: 'bold', color: '#37513f', marginVertical: 10, textAlign: 'center' },
   button: {
     backgroundColor: '#4A3717',
     padding: 10,
@@ -270,14 +260,7 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600'
   },
-  // buttonCerrarSesion: {
-  //   backgroundColor: '#E53935',
-  //   marginTop: 5,
-  //   flex: 1,
-  //   paddingVertical: 14,
-  //   borderRadius: 8,
-  //   alignItems: 'center'
-  // },
+
   input: {
     borderWidth: 1,
     borderColor: '#A8A8A9',
@@ -295,7 +278,7 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     padding: 16,
     flexDirection: 'row',
-    justifyContent: 'space-between',
+    justifyContent: 'space-around',
     alignItems: 'center',
   },
   petCount: {
@@ -342,14 +325,6 @@ const styles = StyleSheet.create({
     color: '#1E1E1E',
     marginLeft: 10
   },
-  // buttonSave: {
-  //   flex: 1,
-  //   backgroundColor: '#4A3717',
-  //   paddingVertical: 14,
-  //   borderRadius: 8,
-  //   alignItems: 'center',
-  //   marginTop: 5,
-  // },
   container: { flex: 1, backgroundColor: '#FFFFFF', paddingHorizontal: 20, paddingTop: 20 },
   avatar: { width: 100, height: 100, borderRadius: 50, backgroundColor: '#E0E0E0' },
   avatarPlaceholder: { width: 100, height: 100, borderRadius: 50, backgroundColor: '#4A3717', justifyContent: 'center', alignItems: 'center' },
@@ -379,6 +354,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     gap: 12,
+    marginBottom: 50,
   },
   buttonHalf: {
     flex: 1,
