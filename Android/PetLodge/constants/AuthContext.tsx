@@ -44,7 +44,15 @@ export const AuthProvider = ({ children }: any) => {
   }, []);
 
   const signOut = async () => {
-    await supabase.auth.signOut();
+    const { error } = await supabase.auth.signOut();
+
+    if (error) {
+      throw error;
+    }
+
+    // Limpieza inmediata de estado para evitar UI con datos sucios.
+    setSession(null);
+    setUser(null);
   };
 
   return (

@@ -1,43 +1,104 @@
-import { Alert, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
-
-
-import { useState } from "react";
-
 import Entypo from "@expo/vector-icons/Entypo";
+import { useRouter } from "expo-router";
+import { useState } from "react";
+import {
+  ActivityIndicator,
+  Alert,
+  Pressable,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
+} from "react-native";
 
-//Navegación
+import { getAuthErrorMessage } from "../../constants/AuthErrors";
+import { useAuth } from "../../constants/AuthContext";
+import { supabase } from "../../lib/supabase";
 
-const numerosYletras = (texto: string, nombreCampo: string): boolean => {
-  if (/^[A-Za-z0-9]*$/.test(texto)) {
-    return true;
-  } else {
-    Alert.alert(
-      "Error",
-      "No se permiten caracteres especiales en " + nombreCampo,
-    );
-    return false;
-  }
-};
-const noNulos = (texto: string): boolean => {
-  return texto.trim() !== "";
-};
+const isNotEmpty = (value: string): boolean => value.trim() !== "";
+
 export default function HomeScreen() {
-  const [actualPassword, setactualPassword] = useState("");
-  const [newPassword, setnewPassword] = useState("");
-  const [confirmPassword, setconfirmPassword] = useState("");
-  const handleConfirmar = () => {
-    if (!noNulos(actualPassword)) {
-      Alert.alert("Error", "No se permiten nulos en la contraseña actual");
-      return;
-    } else if (!noNulos(newPassword)) {
-      Alert.alert("Error", "No se permiten nulos en la nueva contraseña");
-      return;
-    } else if (!noNulos(confirmPassword)) {
-      Alert.alert("Error", "No se permiten nulos en confirmar contraseña");
+  const router = useRouter();
+  const { user } = useAuth();
+  const [actualPassword, setActualPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [loading, setLoading] = useState(false);
+
+  const handleConfirmar = async () => {
+    if (!supabase) {
+      Alert.alert("Error", "No se encontró configuración de Supabase.");
       return;
     }
-    console.log("entro");
+
+    if (!user?.email) {
+      Alert.alert("Error", "No se encontró una sesión activa.");
+      return;
+    }
+
+    if (!isNotEmpty(actualPassword)) {
+      Alert.alert("Error", "Debes ingresar tu contraseña actual.");
+      return;
+    }
+
+    if (!isNotEmpty(newPassword)) {
+      Alert.alert("Error", "Debes ingresar una nueva contraseña.");
+      return;
+    }
+
+    if (!isNotEmpty(confirmPassword)) {
+      Alert.alert("Error", "Debes confirmar tu nueva contraseña.");
+      return;
+    }
+
+    if (newPassword.length < 6) {
+      Alert.alert("Error", "La nueva contraseña debe tener mínimo 6 caracteres.");
+      return;
+    }
+
+    if (newPassword !== confirmPassword) {
+      Alert.alert("Error", "La confirmación no coincide con la nueva contraseña.");
+      return;
+    }
+
+    if (actualPassword === newPassword) {
+      Alert.alert("Error", "La nueva contraseña debe ser distinta a la actual.");
+      return;
+    }
+
+    setLoading(true);
+
+    // Reautenticación para comprobar que la contraseña actual es correcta.
+    const { error: reauthError } = await supabase.auth.signInWithPassword({
+      email: user.email,
+      password: actualPassword,
+    });
+
+    if (reauthError) {
+      setLoading(false);
+      Alert.alert("Error", "La contraseña actual es incorrecta.");
+      return;
+    }
+
+    const { error: updateError } = await supabase.auth.updateUser({
+      password: newPassword,
+    });
+
+    setLoading(false);
+
+    if (updateError) {
+      Alert.alert("Error", getAuthErrorMessage(updateError));
+      return;
+    }
+
+    setActualPassword("");
+    setNewPassword("");
+    setConfirmPassword("");
+    Alert.alert("Éxito", "Tu contraseña se actualizó correctamente.", [
+      { text: "Aceptar", onPress: () => router.back() },
+    ]);
   };
+
   return (
     <View style={styles.container}>
       <Text style={styles.titleContainer}>Cambiar contraseña</Text>
@@ -48,10 +109,8 @@ export default function HomeScreen() {
           placeholder="Contraseña Actual"
           value={actualPassword}
           secureTextEntry
-          onChangeText={(text) => {
-            if (numerosYletras(text, "contraseña actual"))
-              setactualPassword(text);
-          }}
+          autoCapitalize="none"
+          onChangeText={setActualPassword}
         />
       </View>
       <View style={styles.inputContainer}>
@@ -61,11 +120,8 @@ export default function HomeScreen() {
           placeholder="Nueva contraseña"
           value={newPassword}
           secureTextEntry
-          onChangeText={(text) => {
-            if (numerosYletras(text, "nueva contraseña")) {
-              setnewPassword(text);
-            }
-          }}
+          autoCapitalize="none"
+          onChangeText={setNewPassword}
         />
       </View>
       <View style={styles.inputContainer}>
@@ -75,16 +131,17 @@ export default function HomeScreen() {
           placeholder="Confirmar contraseña"
           value={confirmPassword}
           secureTextEntry
-          onChangeText={(text) => {
-            if (numerosYletras(text, "confirmar contraseña")) {
-              setconfirmPassword(text);
-            }
-          }}
+          autoCapitalize="none"
+          onChangeText={setConfirmPassword}
         />
       </View>
 
-      <Pressable style={styles.button} onPress={handleConfirmar}>
-        <Text style={styles.textButton}>Confirmar</Text>
+      <Pressable style={styles.button} onPress={handleConfirmar} disabled={loading}>
+        {loading ? (
+          <ActivityIndicator color="#ffffff" />
+        ) : (
+          <Text style={styles.textButton}>Confirmar</Text>
+        )}
       </Pressable>
     </View>
   );
@@ -102,6 +159,7 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     paddingHorizontal: 10,
     backgroundColor: "#f3f3f3",
+    marginBottom: 12,
   },
   input: {
     flex: 1,
@@ -136,7 +194,6 @@ const styles = StyleSheet.create({
   },
   textButton: {
     color: "#ffffff",
-    marginBottom: 10,
     fontSize: 20,
   },
   textLink: {

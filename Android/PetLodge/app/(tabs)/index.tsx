@@ -1,8 +1,7 @@
 import { Ionicons } from "@expo/vector-icons";
-import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as ImagePicker from "expo-image-picker";
 import { router, useFocusEffect } from "expo-router";
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import {
     ActivityIndicator,
     Alert,
@@ -16,6 +15,7 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useAuth } from "../../constants/AuthContext";
+import { supabase } from "../../lib/supabase";
 
 // Tipo para los datos del perfil
 type Profile = {
@@ -25,6 +25,29 @@ type Profile = {
   telefono: string;
   direccion: string;
   profileImage: string; // URI de la foto
+};
+
+const getImageExtension = (uri: string) => {
+  const cleanUri = uri.split("?")[0];
+  const extension = cleanUri.split(".").pop()?.toLowerCase();
+
+  if (!extension || extension.length > 5) {
+    return "jpg";
+  }
+
+  if (extension === "jpeg") {
+    return "jpg";
+  }
+
+  return extension;
+};
+
+const getImageContentType = (extension: string) => {
+  if (extension === "jpg") {
+    return "image/jpeg";
+  }
+
+  return `image/${extension}`;
 };
 
 // Perfil falso por defecto (se usará si no hay ninguno guardado)
@@ -37,8 +60,17 @@ const DEFAULT_PROFILE: Profile = {
   profileImage: "",
 };
 
+const EMPTY_PROFILE: Profile = {
+  nombre: "",
+  cedula: "",
+  email: "",
+  telefono: "",
+  direccion: "",
+  profileImage: "",
+};
+
 export default function HomeScreen() {
-  const { session, signOut } = useAuth();
+  const { user, signOut, loading: authLoading } = useAuth();
   const [petCount, setPetCount] = useState(0);
   const [loading, setLoading] = useState(false);
 
@@ -52,45 +84,133 @@ export default function HomeScreen() {
   const [editDireccion, setEditDireccion] = useState("");
   const [editProfileImage, setEditProfileImage] = useState("");
 
-  // Cargar perfil desde AsyncStorage
-  const loadProfile = async () => {
+  const resetProfileState = useCallback(() => {
+    setProfile(EMPTY_PROFILE);
+    setEditNombre("");
+    setEditCedula("");
+    setEditEmail("");
+    setEditTelefono("");
+    setEditDireccion("");
+    setEditProfileImage("");
+    setPetCount(0);
+  }, []);
+
+  useEffect(() => {
+    if (!authLoading && !user) {
+      resetProfileState();
+      router.replace("/(auth)/login");
+    }
+  }, [authLoading, resetProfileState, user]);
+
+  const loadProfile = useCallback(async () => {
+    if (!supabase || !user?.id) {
+      resetProfileState();
+      return;
+    }
+
     try {
-      const storedProfile = await AsyncStorage.getItem("profile");
-      if (storedProfile) {
-        const parsed = JSON.parse(storedProfile);
-        setProfile(parsed);
-      } else {
-        // Si no existe, guardamos el perfil por defecto
-        await AsyncStorage.setItem("profile", JSON.stringify(DEFAULT_PROFILE));
-        setProfile(DEFAULT_PROFILE);
+      const { data, error } = await supabase
+        .from("profile")
+        .select("full_name, identification, email, phone, address, image_url")
+        .eq("auth_id", user.id)
+        .maybeSingle();
+
+      if (error) {
+        throw error;
       }
+
+      const profileFromDb: Profile = {
+        nombre: data?.full_name ?? "",
+        cedula: data?.identification ?? "",
+        email: data?.email ?? user.email ?? "",
+        telefono: data?.phone ?? "",
+        direccion: data?.address ?? "",
+        profileImage:
+          data?.image_url && data.image_url !== "NULL" ? data.image_url : "",
+      };
+
+      setProfile(profileFromDb);
+      setEditNombre(profileFromDb.nombre);
+      setEditCedula(profileFromDb.cedula);
+      setEditEmail(profileFromDb.email);
+      setEditTelefono(profileFromDb.telefono);
+      setEditDireccion(profileFromDb.direccion);
+      setEditProfileImage(profileFromDb.profileImage);
     } catch (error) {
       console.error("Error loading profile:", error);
+      Alert.alert("Error", "No se pudo cargar el perfil del usuario.");
     }
-  };
+  }, [resetProfileState, user?.email, user?.id]);
 
-  // Cargar cantidad de mascotas (ejemplo)
-  const loadPetCount = async () => {
+  const loadPetCount = useCallback(async () => {
+    if (!supabase || !user?.id) {
+      setPetCount(0);
+      return;
+    }
+
     try {
-      const petsJson = await AsyncStorage.getItem("pets");
-      const pets = petsJson ? JSON.parse(petsJson) : [];
-      setPetCount(pets.length);
+      const { count, error } = await supabase
+        .from("pet")
+        .select("id", { count: "exact", head: true })
+        .eq("user_id", user.id)
+        .eq("active", true);
+
+      if (error) {
+        throw error;
+      }
+
+      setPetCount(count ?? 0);
     } catch (error) {
+      console.error("Error loading pet count:", error);
       setPetCount(0);
     }
-  };
+  }, [user?.id]);
+
+  const uploadProfilePhoto = useCallback(
+    async (imageUri: string) => {
+      if (!supabase || !user?.id) {
+        throw new Error("No se encontró una sesión activa.");
+      }
+
+      if (!imageUri || imageUri.startsWith("http")) {
+        return imageUri;
+      }
+
+      const extension = getImageExtension(imageUri);
+      const contentType = getImageContentType(extension);
+      const safeEmail = (user.email ?? user.id)
+        .toLowerCase()
+        .replace(/[^a-z0-9]/g, "_");
+      const objectPath = `${user.id}/${safeEmail}_profile_photo.${extension}`;
+
+      const imageResponse = await fetch(imageUri);
+      const imageArrayBuffer = await imageResponse.arrayBuffer();
+
+      const { error: uploadError } = await supabase.storage
+        .from("profile-photos")
+        .upload(objectPath, imageArrayBuffer, {
+          contentType,
+          upsert: true,
+        });
+
+      if (uploadError) {
+        throw uploadError;
+      }
+
+      const { data } = supabase.storage
+        .from("profile-photos")
+        .getPublicUrl(objectPath);
+
+      return data.publicUrl;
+    },
+    [user?.email, user?.id],
+  );
 
   useFocusEffect(
     useCallback(() => {
       loadProfile();
       loadPetCount();
-      setEditNombre(profile.nombre);
-      setEditCedula(profile.cedula);
-      setEditEmail(profile.email);
-      setEditTelefono(profile.telefono);
-      setEditDireccion(profile.direccion);
-      setEditProfileImage(profile.profileImage);
-    }, []),
+    }, [loadPetCount, loadProfile]),
   );
 
   const handleChangeProfileImage = async () => {
@@ -189,20 +309,56 @@ export default function HomeScreen() {
       return;
     }
 
+    if (!supabase || !user?.id) {
+      Alert.alert("Error", "No se encontró una sesión activa.");
+      return;
+    }
+
     setLoading(true);
+    let profileImageUrl = profile.profileImage;
+
+    if (editProfileImage && editProfileImage !== profile.profileImage) {
+      try {
+        profileImageUrl = await uploadProfilePhoto(editProfileImage);
+      } catch (error) {
+        console.error("Error uploading profile photo:", error);
+        Alert.alert("Error", "No se pudo subir la foto de perfil.");
+        setLoading(false);
+        return;
+      }
+    }
+
     const updatedProfile: Profile = {
       nombre: editNombre.trim(),
       cedula: editCedula.trim(),
       email: editEmail.trim(),
       telefono: editTelefono.trim(),
       direccion: editDireccion.trim(),
-      profileImage: editProfileImage,
+      profileImage: profileImageUrl,
     };
     try {
-      await AsyncStorage.setItem("profile", JSON.stringify(updatedProfile));
+      const { error } = await supabase
+        .from("profile")
+        .update({
+          full_name: updatedProfile.nombre,
+          identification: updatedProfile.cedula,
+          email: updatedProfile.email,
+          phone: updatedProfile.telefono,
+          address: updatedProfile.direccion,
+          image_url: updatedProfile.profileImage || null,
+          last_update: new Date().toISOString(),
+        })
+        .eq("auth_id", user.id);
+
+      if (error) {
+        throw error;
+      }
+
       setProfile(updatedProfile);
+  setEditProfileImage(updatedProfile.profileImage);
       Alert.alert("Éxito", "Perfil actualizado correctamente");
     } catch (error) {
+      console.error("Error saving profile:", error);
       Alert.alert("Error", "No se pudo guardar el perfil");
     } finally {
       setLoading(false);
@@ -216,7 +372,7 @@ export default function HomeScreen() {
   };
 
   const change_password = () => {
-    router.push("/change_password");
+    router.push("/(auth)/change_password");
   };
 
   const confirmLogout = () => {
@@ -224,9 +380,15 @@ export default function HomeScreen() {
       { text: "Cancelar", style: "cancel" },
       {
         text: "Sí, cerrar",
-        onPress: () => {
-          signOut();
-          router.replace("/(auth)/login");
+        onPress: async () => {
+          try {
+            await signOut();
+            resetProfileState();
+            router.replace("/(auth)/login");
+          } catch (error) {
+            console.error("Error closing session:", error);
+            Alert.alert("Error", "No se pudo cerrar la sesión.");
+          }
         },
       },
     ]);
