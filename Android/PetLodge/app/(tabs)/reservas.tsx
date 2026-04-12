@@ -173,6 +173,9 @@ export default function HomeScreen() {
 
   const [markedDates, setMarkedDates] = useState<any>({});
 
+  const isSpecial = lodgingTypes.find(l => l.id === selectedLodgingTypeId)?.name === 'Especial';
+
+
   const formatDisplayDate = (dateString: string) => {
     return format(parse(dateString, 'yyyy-MM-dd', new Date()), 'dd/MM/yy');
   };
@@ -527,7 +530,10 @@ export default function HomeScreen() {
         <Pressable
           key={type.id}
           style={[styles.checkboxRow, selectedLodgingTypeId === type.id && styles.checkboxSelected]}
-          onPress={() => setSelectedLodgingTypeId(type.id)}
+          onPress={() => {
+            setSelectedLodgingTypeId(type.id);
+            if (type.name !== 'Especial') setSelectedServices(new Set());
+          }}
         >
           <View style={styles.radioOuter}>
             {selectedLodgingTypeId === type.id && <View style={styles.radioInner} />}
@@ -545,8 +551,12 @@ export default function HomeScreen() {
       {additionalServices.map(service => (
         <Pressable
           key={service.id}
-          style={styles.checkboxRow}
-          onPress={() => toggleService(service.id)}
+          style={[
+            styles.checkboxRow,
+            !isSpecial && { opacity: 0.4 }
+          ]}
+          onPress={() => isSpecial && toggleService(service.id)}
+          disabled={!isSpecial}
         >
           <View style={styles.checkboxBox}>
             {selectedServices.has(service.id) && <View style={styles.checkboxInner} />}
