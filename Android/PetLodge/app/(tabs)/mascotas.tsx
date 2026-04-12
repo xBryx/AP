@@ -15,6 +15,8 @@ import { ScrollView } from "react-native";
 import * as ImagePicker from "expo-image-picker";
 import { useRouter } from "expo-router";
 import { Alert } from "react-native";
+import { Ionicons } from "@expo/vector-icons";
+import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 
 const noNulos = (texto: string): boolean => {
   return texto.trim() !== "";
@@ -114,7 +116,7 @@ export default function HomeScreen() {
   const [petImage, setPetImage] = useState("");
 
   const handleAddMascota = () => {
-if (!noNulos(nombre)) {
+    if (!noNulos(nombre)) {
       Alert.alert("Error", "No se permiten nulos en nombre");
       return;
     } else if (!noNulos(especie)) {
@@ -166,6 +168,7 @@ if (!noNulos(nombre)) {
       style={{ backgroundColor: "#FFFF" }}
       contentContainerStyle={{ justifyContent: "center" }}
     >
+      
       {/* Switch del encabezado */}
       <View style={styles.tabContainer}>
         <Pressable
@@ -195,38 +198,65 @@ if (!noNulos(nombre)) {
           keyExtractor={(item) => item.id.toString()}
           renderItem={({ item }) => (
             <View style={styles.card}>
-              {/*Foto de mascota*/}
-              {item.profileImage ? (
-                <Image
-                  source={{ uri: item.profileImage }}
-                  style={styles.avatarMascota}
-                />
-              ) : (
-                <View style={styles.avatarPlaceholder}>
-                  <Text style={styles.avatarInitial}>
-                    {item.nombre.charAt(0).toUpperCase()}
-                  </Text>
-                </View>
-              )}
-              {/* Nombre y raza */}
-              <Text style={styles.nombreMascota}>{item.nombre}</Text>
-              {/* Información especie */}
-              <Text>
-                {item.tipo} | {item.raza} | {item.edad}
-              </Text>
-              {/* Información de salud */}
-              <Text style={{ fontWeight: "bold" }}>Vacunas al día</Text>
-              {item.vacunas === true ? <Text>Sí</Text> : <Text>No</Text>}
-              <Text style={{ fontWeight: "bold" }}>Condiciones médicas</Text>
-              <Text>{item.condicionesMedicas} </Text>
-              {/* Información veterinario */}
-              <Text style={{ fontWeight: "bold" }}>Veterinario/a</Text>
-              <Text>
-                {item.veterinario} | {item.numeroVeterinario}
-              </Text>
-              {/* Notas */}
-              <Text style={{ fontWeight: "bold" }}>Notas</Text>
-              <Text>{item.notas}</Text>
+              <View style={styles.labelContainer}>
+                {/* Nombre y raza */}
+                <Text style={styles.nombreMascota}>{item.nombre}</Text>
+              </View>
+              <View style={styles.labelContainer}>
+                {/*Foto de mascota*/}
+                {item.profileImage ? (
+                  <Image
+                    source={{ uri: item.profileImage }}
+                    style={styles.avatarMascota}
+                  />
+                ) : (
+                  <View style={styles.avatarPlaceholder}>
+                    <Text style={styles.avatarInitial}>
+                      {item.nombre.charAt(0).toUpperCase()}
+                    </Text>
+                  </View>
+                )}
+                {/* Información especie */}
+                <Text>
+                  {item.tipo} | {item.raza} | {item.edad}
+                </Text>
+                <Pressable
+               
+                  onPress={() => handleDelete(item)}
+                > <MaterialIcons name="delete" size={24} color="black" />
+                  
+                </Pressable>
+              </View>
+              <View style={styles.labelContainer}>
+                {/* Vacunas  e info veterinario */}
+                <Text style={{ fontWeight: "bold", marginHorizontal: 20 }}>
+                  Vacunas al día
+                </Text>
+                <Text style={{ fontWeight: "bold" }}>Veterinario/a</Text>
+              </View>
+              <View style={styles.labelContainer}>
+                {item.vacunas === true ? (
+                  <Text style={{ marginHorizontal: 20 }}>                            Sí           </Text>
+                ) : (
+                  <Text>                            No           </Text>
+                )}
+                <Text style={{ marginHorizontal: 20 }}>
+                  {item.veterinario} | {item.numeroVeterinario}
+                </Text>
+              </View>
+              {/* Condiciones médicas y notas */}
+              <View style={styles.labelContainer}>
+                <Text style={{ fontWeight: "bold", marginHorizontal: 20 }}>
+                  Condiciones médicas
+                </Text>
+                <Text style={{ fontWeight: "bold", marginHorizontal: 20 }}>
+                  Notas
+                </Text>
+              </View>
+              <View style={styles.labelContainer}>
+              <Text style={{marginHorizontal: 20}}>{item.condicionesMedicas} </Text>              
+              <Text style={{marginHorizontal: 20}}>{item.notas}</Text>
+              </View>
               <View style={{ flexDirection: "row", gap: 10 }}>
                 <Pressable
                   style={styles.button}
@@ -240,13 +270,7 @@ if (!noNulos(nombre)) {
                   onPress={() => handleReserve(item)}
                 >
                   <Text style={styles.textButton}>Hacer Reserva</Text>
-                </Pressable>
-                <Pressable
-                  style={styles.button}
-                  onPress={() => handleDelete(item)}
-                >
-                  <Text style={styles.textButton}>Eliminar</Text>
-                </Pressable>
+                </Pressable>                
               </View>
             </View>
           )}
@@ -256,10 +280,12 @@ if (!noNulos(nombre)) {
           {/* AÑADIR MASCOTAS */}
 
           {/*Foto de mascota*/}
-          <Pressable onPress={handlePickImage} style={styles.button}>
-            <Text style={styles.textButton}>Seleccionar imagen</Text>
+          <View style={{alignItems:"center"}}>
+          <Pressable onPress={handlePickImage}>
+             <Ionicons name="person" size={15} color="#676767" />
+            
           </Pressable>
-
+</View>
           {/* Nombre de mascota */}
           <TextInput
             style={styles.input}
@@ -271,7 +297,10 @@ if (!noNulos(nombre)) {
               }
             }}
           />
+          
           {/* Especie */}
+          <View style={{flexDirection: "row", justifyContent: "center", gap: 10,}} >
+            <View style={{flex:1}}>
           <Picker
             selectedValue={especie}
             onValueChange={(itemValue) => setEspecie(itemValue)}
@@ -283,9 +312,11 @@ if (!noNulos(nombre)) {
                 key={item.value}
                 label={item.label}
                 value={item.value}
-              />
+              />              
             ))}
           </Picker>
+          </View>
+          <View style={{flex:1}}>
           {/* Raza */}
           <TextInput
             style={styles.input}
@@ -297,6 +328,10 @@ if (!noNulos(nombre)) {
               }
             }}
           />
+          </View>
+          </View>
+          <View style={{flexDirection: "row", justifyContent: "center", gap: 10,}} >
+            <View style={{flex:1}}>
           {/* Edad */}
           <TextInput
             style={styles.input}
@@ -306,9 +341,11 @@ if (!noNulos(nombre)) {
               if (soloNumeros(text, "edad")) {
                 setEdad(Number(text));
               }
-            }}
+            }}            
           />
+          </View>
           {/* Sexo */}
+          <View style={{flex:1}}>
           <Picker
             selectedValue={sexo}
             onValueChange={(itemValue) => setSexo(itemValue)}
@@ -318,6 +355,8 @@ if (!noNulos(nombre)) {
             <Picker.Item label="Hembra" value="hembra" />
             <Picker.Item label="Macho" value="macho" />
           </Picker>
+          </View>
+          </View>
           <View style={styles.switchContainer}>
             {/* Vacunas */}
             <Text>Vacunas al día</Text>
@@ -336,10 +375,10 @@ if (!noNulos(nombre)) {
               placeholder="Especificar vacunas"
               value={notaVacunas}
               onChangeText={(text) => {
-              if (numerosYletras(text, "vacunas")) {
-                setNotaVacunas(text);
-              }
-            }}
+                if (numerosYletras(text, "vacunas")) {
+                  setNotaVacunas(text);
+                }
+              }}
             />
           )}
           {/* Condiciones médicas */}
@@ -360,10 +399,10 @@ if (!noNulos(nombre)) {
               placeholder="Especificar condiciones médicas"
               value={notaCondMedicas}
               onChangeText={(text) => {
-              if (numerosYletras(text, "condiciones médicas")) {
-                setNotasCondMedicas(text);
-              }
-            }}
+                if (numerosYletras(text, "condiciones médicas")) {
+                  setNotasCondMedicas(text);
+                }
+              }}
             />
           )}
           {/* Tamaño */}
@@ -425,6 +464,46 @@ if (!noNulos(nombre)) {
 }
 
 const styles = StyleSheet.create({
+  icon: {
+    marginRight: 8,
+  },
+    inputContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    borderWidth: 1,
+    borderColor: "#ccc",
+    borderRadius: 8,
+    paddingHorizontal: 10,
+    backgroundColor: "#f3f3f3",
+    marginBottom: 15,
+  },
+  labelContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    borderWidth: 1,
+    borderColor: "#dfe9ea",
+    borderRadius: 8,
+    paddingHorizontal: 30,
+    backgroundColor: "#dfe9ea",
+    marginBottom: 15,
+  },
+  input: {
+    borderWidth: 1,
+    borderColor: "#A8A8A9",
+    backgroundColor: "#f3f3f3",
+    color: "#676767",
+    marginBottom: 10,
+    padding: 10,
+    borderRadius: 5,
+  },
+  nameContainer: {
+    color: "#37513f",
+    flexDirection: "row",
+    textAlign: "center",
+    fontSize: 30,
+    gap: 8,
+    fontWeight: "bold",
+  },
   container: {
     flex: 1,
     backgroundColor: "#ffffff",
@@ -438,15 +517,6 @@ const styles = StyleSheet.create({
     fontSize: 30,
     gap: 8,
     fontWeight: "bold",
-  },
-  input: {
-    borderWidth: 1,
-    borderColor: "#A8A8A9",
-    backgroundColor: "#f3f3f3",
-    color: "#676767",
-    marginBottom: 10,
-    padding: 10,
-    borderRadius: 5,
   },
   button: {
     backgroundColor: "#4A3717",
@@ -489,12 +559,17 @@ const styles = StyleSheet.create({
   },
   card: {
     backgroundColor: "#dfe9ea",
+    alignItems: "center",
     padding: 15,
     borderRadius: 10,
     marginBottom: 10,
   },
   nombreMascota: {
+    color: "#37513f",
+    flexDirection: "row",
+    textAlign: "center",
     fontSize: 16,
+    gap: 8,
     fontWeight: "bold",
   },
   sizeContainer: {

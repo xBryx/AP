@@ -8,6 +8,8 @@ import { ThemedView } from "@/components/themed-view";
 import { View, Text, TextInput, Pressable } from "react-native";
 import { Alert } from "react-native";
 import { useState } from "react";
+import { Ionicons } from "@expo/vector-icons";
+import Entypo from "@expo/vector-icons/Entypo";
 
 //Navegación
 import { router } from "expo-router";
@@ -87,94 +89,146 @@ export default function HomeScreen() {
   return (
     <View style={styles.container}>
       <Text style={styles.titleContainer}>Registrate</Text>
-
-      <TextInput
-        style={styles.input}
-        placeholder="Nombre"
-        value={nombre}
-        onChangeText={(text) => {
-          if (soloLetras(text, "nombre")) {
-            setnombre(text);
-          }
-        }}
-      />
-      <TextInput
-        style={styles.input}
-        placeholder="Apellido"
-        value={apellido}
-        onChangeText={(text) => {
-          if (soloLetras(text, "apellido")) {
-            setapellido(text);
-          }
-        }}
-      />
-      <TextInput
-        style={styles.input}
-        placeholder="Cédula"
-        value={cedula.toString()}
-        keyboardType="numeric"
-        onChangeText={(text) => {
-          if (soloNumeros(text, "cédula")) {
-            setcedula(Number(text));
-          }
-        }}
-      />
-      <TextInput
-        style={styles.input}
-        placeholder="Email"
-        value={email}
-        onChangeText={setemail}
-      />
-      <TextInput
-        style={styles.input}
-        placeholder="Teléfono"
-        value={telefono.toString()}
-        keyboardType="numeric"
-        onChangeText={(text) => {
-          if (soloNumeros(text, "teléfono")) {
-            settelefono(Number(text));
-          }
-        }}
-      />
-      <TextInput
-        style={styles.input}
-        placeholder="Dirección"
-        value={direccion}
-        onChangeText={(text) => {
-          if (numerosYletras(text, "dirección")) {
-            setdireccion(text);
-          }
-        }}
-      />
-      <TextInput
-        style={styles.input}
-        secureTextEntry
-        placeholder="Contraseña"
-        value={password}
-        onChangeText={setpassword}
-      />
-      <TextInput
-        style={styles.input}
-        placeholder="Confirmar contraseña"
-        value={confirmPassword}
-        secureTextEntry
-        onChangeText={setconfirmPassword}
-      />
+      <View style={styles.inputContainer}>
+        <Ionicons name="person" size={15} color="#676767" style={styles.icon} />
+        <TextInput
+          style={styles.input}
+          placeholder="Nombre"
+          value={nombre}
+          onChangeText={(text) => {
+            if (soloLetras(text, "nombre")) {
+              setnombre(text);
+            }
+          }}
+        />
+      </View>
+      <View style={styles.inputContainer}>
+        <Ionicons name="person" size={15} color="#676767" style={styles.icon} />
+        <TextInput
+          style={styles.input}
+          placeholder="Apellido"
+          value={apellido}
+          onChangeText={(text) => {
+            if (soloLetras(text, "apellido")) {
+              setapellido(text);
+            }
+          }}
+        />
+      </View>
+      <View style={styles.inputContainer}>
+        <Ionicons name="person" size={15} color="#676767" style={styles.icon} />
+        <TextInput
+          style={styles.input}
+          placeholder="Cédula"
+          value={cedula.toString()}
+          keyboardType="numeric"
+          onChangeText={(text) => {
+            if (soloNumeros(text, "cédula")) {
+              setcedula(Number(text));
+            }
+          }}
+        />
+      </View>
+      <View style={styles.inputContainer}>
+        <Ionicons name="person" size={15} color="#676767" style={styles.icon} />
+        <TextInput
+          style={styles.input}
+          placeholder="Email"
+          value={email}
+          onChangeText={setemail}
+        />
+      </View>
+      <View style={styles.inputContainer}>
+        <Ionicons name="person" size={15} color="#676767" style={styles.icon} />
+        <TextInput
+          style={styles.input}
+          placeholder="Teléfono"
+          value={telefono.toString()}
+          keyboardType="numeric"
+          onChangeText={(text) => {
+            if (soloNumeros(text, "teléfono")) {
+              settelefono(Number(text));
+            }
+          }}
+        />
+      </View>
+      <View style={styles.inputContainer}>
+        <Ionicons name="person" size={15} color="#676767" style={styles.icon} />
+        <TextInput
+          style={styles.input}
+          placeholder="Dirección"
+          value={direccion}
+          onChangeText={(text) => {
+            if (numerosYletras(text, "dirección")) {
+              setdireccion(text);
+            }
+          }}
+        />
+      </View>
+      <View style={styles.inputContainer}>
+        <Entypo name="lock" size={24} color="black" style={styles.icon} />
+        <TextInput
+          style={styles.input}
+          secureTextEntry
+          placeholder="Contraseña"
+          value={password}
+          onChangeText={setpassword}
+        />
+      </View>
+      <View style={styles.inputContainer}>
+        <Entypo name="lock" size={24} color="black" style={styles.icon} />
+        <TextInput
+          style={styles.input}
+          placeholder="Confirmar contraseña"
+          value={confirmPassword}
+          secureTextEntry
+          onChangeText={setconfirmPassword}
+        />
+      </View>
 
       <Pressable style={styles.button} onPress={handleConfirmar}>
-        <Text style={styles.textButton}>Confirmar</Text>
+        <Text style={styles.textButton}>Registrarse</Text>
       </Pressable>
-
+ <View style={styles.textContainer}>
       <Text style={styles.text}>¿Ya tienes cuenta?</Text>
 
       <Link href={"/login"}>
         <Text style={styles.textLink}>Iniciar Sesión</Text>
       </Link>
+      </View>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
+    textContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    borderWidth: 1,
+    borderColor: "#ffffff",
+    borderRadius: 8,
+    paddingHorizontal: 20,
+    backgroundColor: "#ffffff",
+  },
+  icon: {
+    marginRight: 8,
+  },
+  inputContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    borderWidth: 1,
+    borderColor: "#ccc",
+    borderRadius: 8,
+    paddingHorizontal: 10,
+    backgroundColor: "#f3f3f3",
+    marginBottom: 15,
+  },
+  input: {
+    flex: 1,
+    height: 40,
+    color: "#676767",
+    
+  },
   container: {
     flex: 1,
     backgroundColor: "#ffffff",
@@ -188,15 +242,6 @@ const styles = StyleSheet.create({
     fontSize: 30,
     gap: 8,
     fontWeight: "bold",
-  },
-  input: {
-    borderWidth: 1,
-    borderColor: "#A8A8A9",
-    backgroundColor: "#f3f3f3",
-    color: "#676767",
-    marginBottom: 10,
-    padding: 10,
-    borderRadius: 5,
   },
   button: {
     backgroundColor: "#4A3717",
@@ -215,10 +260,11 @@ const styles = StyleSheet.create({
     marginBottom: 10,
     fontSize: 20,
   },
-  textLink: {
+    textLink: {
     color: "#4e6e58",
-    marginBottom: 10,
+    marginBottom: 15,
     fontSize: 15,
-    textAlign: "center",
+    textAlign: "right",
+    fontWeight: "bold",
   },
 });

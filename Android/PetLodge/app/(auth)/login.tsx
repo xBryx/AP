@@ -113,6 +113,7 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     paddingHorizontal: 10,
     backgroundColor: "#f3f3f3",
+    marginBottom: 15,
   },
   input: {
     flex: 1,

@@ -30,7 +30,8 @@ export const AuthProvider = ({ children }: any) => {
   //Lógica de login
   const login = async (username: string, password: string) => {
     // validación CAMBIAR ESTO LUEGO
-    if (!(/^[0-9]+$/.test(username)) || !(/^[0-9]+$/.test(password))){
+    if (!(/^[A-Za-z0-9]*$/.test(username)) || !(/^[A-Za-z0-9]*$/.test(password))||
+    username === "" || password ===""){
       return false
     }
     if (username === "admin" && password === "1234") {
