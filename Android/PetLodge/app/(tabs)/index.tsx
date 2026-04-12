@@ -5,6 +5,7 @@ import { useAuth } from '../../constants/AuthContext';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useCallback, useState, useEffect } from 'react';
 import * as ImagePicker from 'expo-image-picker';
+import { Ionicons } from '@expo/vector-icons';
 
 // Tipo para los datos del perfil
 type Profile = {
@@ -233,7 +234,8 @@ function InfoRow({ label, value }: { label: string; value: string }) {
 function EditRow({ label, value, onChangeText, placeholder, keyboardType = 'default', autoCapitalize = 'sentences' }: any) {
   return (
     <View style={styles.editRow}>
-      <Text style={styles.infoLabel}>{label}</Text>
+      <Ionicons name="person" size={15} color="#676767" />
+      <Text style={styles.infoLabel}> {label}</Text>
       <TextInput
         style={styles.editInput}
         value={value}
