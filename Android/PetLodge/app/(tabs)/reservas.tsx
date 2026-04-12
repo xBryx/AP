@@ -403,34 +403,6 @@ export default function HomeScreen() {
     });
   };
 
-  const handleDeleteReservation = () => {
-    if (!editingReservationId) return;
-
-    Alert.alert(
-      'Eliminar reserva',
-      '¿Estás seguro de que deseas eliminar esta reserva?',
-      [
-        { text: 'Cancelar', style: 'cancel' },
-        {
-          text: 'Eliminar',
-          style: 'destructive',
-          onPress: () => {
-            setReservations(prev => prev.filter(res => res.id !== editingReservationId));
-            Alert.alert('Éxito', 'Reserva eliminada correctamente', [
-              {
-                text: 'OK',
-                onPress: () => {
-                  cancelEdit();
-                  setActiveMainTab('historial');
-                  setActiveStatusTab('Pendiente');
-                },
-              },
-            ]);
-          },
-        },
-      ]
-    );
-  };
 
   const renderHistorial = () => {
     const filteredReservations = reservations.filter(r => r.status_name === activeStatusTab);
@@ -579,10 +551,6 @@ export default function HomeScreen() {
 
       {isEditingMode && (
         <>
-          <Pressable style={styles.deleteButton} onPress={handleDeleteReservation}>
-            <Text style={styles.deleteButtonText}>Eliminar reserva</Text>
-          </Pressable>
-
           <Pressable style={styles.cancelEditButton} onPress={cancelEdit}>
             <Text style={styles.cancelEditText}>Cancelar edición</Text>
           </Pressable>
