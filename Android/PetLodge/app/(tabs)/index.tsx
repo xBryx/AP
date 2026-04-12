@@ -10,7 +10,6 @@ import { Ionicons } from '@expo/vector-icons';
 // Tipo para los datos del perfil
 type Profile = {
   nombre: string;
-  apellido: string;
   cedula: string;
   email: string;
   telefono: string;
@@ -21,10 +20,9 @@ type Profile = {
 // Perfil falso por defecto (se usará si no hay ninguno guardado)
 const DEFAULT_PROFILE: Profile = {
   nombre: 'Ana',
-  apellido: 'García',
   cedula: '123456789',
   email: 'ana.garcia@example.com',
-  telefono: '+34 612 345 678',
+  telefono: '61234567',
   direccion: 'Calle Principal 123, Madrid',
   profileImage: '',
 };
@@ -38,7 +36,6 @@ export default function HomeScreen() {
   const [profile, setProfile] = useState<Profile>(DEFAULT_PROFILE);
   // Estado para edición
   const [editNombre, setEditNombre] = useState('');
-  const [editApellido, setEditApellido] = useState('');
   const [editCedula, setEditCedula] = useState('');
   const [editEmail, setEditEmail] = useState('');
   const [editTelefono, setEditTelefono] = useState('');
@@ -78,7 +75,6 @@ export default function HomeScreen() {
       loadProfile();
       loadPetCount();
       setEditNombre(profile.nombre);
-      setEditApellido(profile.apellido);
       setEditCedula(profile.cedula);
       setEditEmail(profile.email);
       setEditTelefono(profile.telefono);
@@ -86,7 +82,6 @@ export default function HomeScreen() {
       setEditProfileImage(profile.profileImage);
     }, [])
   );
-
 
   const handleChangeProfileImage = async () => {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -105,17 +100,73 @@ export default function HomeScreen() {
     }
   };
 
+  const handleNombreChange = (text: string) => {
+    // Permite solo letras y espacios
+    const sanitized = text.replace(/[^A-Za-zÁÉÍÓÚÜÑáéíóúüñ\s]/g, '');
+    setEditNombre(sanitized);
+  };
+
+  const handleCedulaChange = (text: string) => {
+    // Solo números, sin límite superior aquí; se valida en guardar
+    const sanitized = text.replace(/\D/g, '');
+    setEditCedula(sanitized);
+  };
+
+  const handleTelefonoChange = (text: string) => {
+    // Solo números y máximo 8 dígitos
+    const sanitized = text.replace(/\D/g, '').slice(0, 8);
+    setEditTelefono(sanitized);
+  };
+
+  const isValidNombre = (value: string) => {
+    const trimmed = value.trim();
+    return /^[A-Za-zÁÉÍÓÚÜÑáéíóúüñ\s]+$/.test(trimmed) && /[A-Za-zÁÉÍÓÚÜÑáéíóúüñ]/.test(trimmed);
+  };
+
+  const isValidCedula = (value: string) => {
+    const trimmed = value.trim();
+    return /^\d{9,}$/.test(trimmed);
+  };
+
+  const isValidEmail = (value: string) => {
+    const trimmed = value.trim();
+    return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmed);
+  };
+
+  const isValidTelefono = (value: string) => {
+    const trimmed = value.trim();
+    return /^\d{8}$/.test(trimmed);
+  };
+
   const handleSave = async () => {
-    if (!editNombre.trim() || !editApellido.trim() || !editCedula.trim() || 
-        !editEmail.trim() || !editTelefono.trim() || !editDireccion.trim()) {
+    if (!editNombre.trim() || !editCedula.trim() || !editEmail.trim() || !editTelefono.trim() || !editDireccion.trim()) {
       Alert.alert('Error', 'Todos los campos son obligatorios');
+      return;
+    }
+
+    if (!isValidNombre(editNombre)) {
+      Alert.alert('Error', 'El nombre solo puede contener letras');
+      return;
+    }
+
+    if (!isValidCedula(editCedula)) {
+      Alert.alert('Error', 'La cédula debe contener solo números y mínimo 9 dígitos');
+      return;
+    }
+
+    if (!isValidEmail(editEmail)) {
+      Alert.alert('Error', 'El email no tiene un formato válido');
+      return;
+    }
+
+    if (!isValidTelefono(editTelefono)) {
+      Alert.alert('Error', 'El teléfono debe contener solo 8 dígitos numéricos');
       return;
     }
 
     setLoading(true);
     const updatedProfile: Profile = {
       nombre: editNombre.trim(),
-      apellido: editApellido.trim(),
       cedula: editCedula.trim(),
       email: editEmail.trim(),
       telefono: editTelefono.trim(),
@@ -133,10 +184,7 @@ export default function HomeScreen() {
     }
   };
 
-
-
-  const fullName = `${profile.nombre} ${profile.apellido}`;
-  const displayName = fullName;
+  const displayName = profile.nombre;
 
   const goToMascotas = () => {
     router.push('/mascotas');
@@ -155,68 +203,98 @@ export default function HomeScreen() {
 
   return (
     <SafeAreaView style={{ flex: 1 }}>
-    <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
-      <Text style={styles.headerTitle}>Perfil</Text>
-      {/* Foto de perfil */}
-      <Pressable onPress={handleChangeProfileImage} style={styles.avatarContainer}>
-        {editProfileImage ? (
-          <Image source={{ uri: editProfileImage }} style={styles.avatar} />
-        ) : profile.profileImage ? (
-          <Image source={{ uri: profile.profileImage }} style={styles.avatar} />
-        ) : (
-          <View style={styles.avatarPlaceholder}>
-            <Text style={styles.avatarInitial}>{displayName.charAt(0).toUpperCase()}</Text>
-          </View>
-        )}
-        {<Text style={styles.changePhotoText}>Cambiar foto</Text>}
-      </Pressable>
-
-      {/* Tarjeta de mascotas */}
-      <Pressable style={styles.petCard} onPress={goToMascotas}>
-        <Text style={styles.petCount}>
-          {petCount} {petCount === 1 ? 'mascota registrada' : 'mascotas registradas'}
-        </Text>
-        <Text style={styles.verMascotasLink}>Ver mascotas</Text>
-      </Pressable>
-
-      {/* Datos del perfil */}
-      <View style={styles.infoContainer}>
-        {
-          <>
-            <EditRow label="Nombre" value={editNombre} onChangeText={setEditNombre} placeholder="Nombre" />
-            <EditRow label="Apellido" value={editApellido} onChangeText={setEditApellido} placeholder="Apellido" />
-            <EditRow label="Cédula" value={editCedula} onChangeText={setEditCedula} placeholder="Cédula" />
-            <EditRow label="Email" value={editEmail} onChangeText={setEditEmail} placeholder="Email" keyboardType="email-address" autoCapitalize="none" />
-            <EditRow label="Teléfono" value={editTelefono} onChangeText={setEditTelefono} placeholder="Teléfono" keyboardType="phone-pad" />
-            <EditRow label="Dirección" value={editDireccion} onChangeText={setEditDireccion} placeholder="Dirección" />
-          </>}
-      </View>
-
-      {/* Botones */}
-      <View style={styles.buttonContainer}>
-        {/* Botón Cambiar Contraseña - ancho completo */}
-        <Pressable style={styles.buttonFullWidth} onPress={change_password}>
-          <Text style={styles.buttonText}>Cambiar Contraseña</Text>
+      <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
+        <Text style={styles.headerTitle}>Perfil</Text>
+        {/* Foto de perfil */}
+        <Pressable onPress={handleChangeProfileImage} style={styles.avatarContainer}>
+          {editProfileImage ? (
+            <Image source={{ uri: editProfileImage }} style={styles.avatar} />
+          ) : profile.profileImage ? (
+            <Image source={{ uri: profile.profileImage }} style={styles.avatar} />
+          ) : (
+            <View style={styles.avatarPlaceholder}>
+              <Text style={styles.avatarInitial}>{displayName.charAt(0).toUpperCase()}</Text>
+            </View>
+          )}
+          {<Text style={styles.changePhotoText}>Cambiar foto</Text>}
         </Pressable>
 
-        {/* Contenedor para los dos botones en fila */}
-        <View style={styles.rowButtons}>
-          <Pressable 
-            style={[styles.buttonHalf, styles.buttonSave]} 
-            onPress={handleSave} 
-            disabled={loading}
-          >
-            {loading ? <ActivityIndicator color="#FFFFFF" /> : <Text style={styles.buttonText}>Guardar</Text>}
-          </Pressable>
-          <Pressable 
-            style={[styles.buttonHalf, styles.buttonCerrarSesion]} 
-            onPress={confirmLogout}
-          >
-            <Text style={styles.buttonText}>Cerrar Sesión</Text>
-          </Pressable>
+        {/* Tarjeta de mascotas */}
+        <Pressable style={styles.petCard} onPress={goToMascotas}>
+          <Text style={styles.petCount}>
+            {petCount} {petCount === 1 ? 'mascota registrada' : 'mascotas registradas'}
+          </Text>
+          <Text style={styles.verMascotasLink}>Ver mascotas</Text>
+        </Pressable>
+
+        {/* Datos del perfil */}
+        <View style={styles.infoContainer}>
+          {
+            <>
+              <EditRow
+                label="Nombre"
+                value={editNombre}
+                onChangeText={handleNombreChange}
+                placeholder="Nombre"
+                autoCapitalize="words"
+              />
+              <EditRow
+                label="Cédula"
+                value={editCedula}
+                onChangeText={handleCedulaChange}
+                placeholder="Cédula"
+                keyboardType="number-pad"
+              />
+              <EditRow
+                label="Email"
+                value={editEmail}
+                onChangeText={setEditEmail}
+                placeholder="Email"
+                keyboardType="email-address"
+                autoCapitalize="none"
+              />
+              <EditRow
+                label="Teléfono"
+                value={editTelefono}
+                onChangeText={handleTelefonoChange}
+                placeholder="Teléfono"
+                keyboardType="number-pad"
+              />
+              <EditRow
+                label="Dirección"
+                value={editDireccion}
+                onChangeText={setEditDireccion}
+                placeholder="Dirección"
+              />
+            </>
+          }
         </View>
-      </View>
-    </ScrollView>
+
+        {/* Botones */}
+        <View style={styles.buttonContainer}>
+          {/* Botón Cambiar Contraseña - ancho completo */}
+          <Pressable style={styles.buttonFullWidth} onPress={change_password}>
+            <Text style={styles.buttonText}>Cambiar Contraseña</Text>
+          </Pressable>
+
+          {/* Contenedor para los dos botones en fila */}
+          <View style={styles.rowButtons}>
+            <Pressable
+              style={[styles.buttonHalf, styles.buttonSave]}
+              onPress={handleSave}
+              disabled={loading}
+            >
+              {loading ? <ActivityIndicator color="#FFFFFF" /> : <Text style={styles.buttonText}>Guardar</Text>}
+            </Pressable>
+            <Pressable
+              style={[styles.buttonHalf, styles.buttonCerrarSesion]}
+              onPress={confirmLogout}
+            >
+              <Text style={styles.buttonText}>Cerrar Sesión</Text>
+            </Pressable>
+          </View>
+        </View>
+      </ScrollView>
     </SafeAreaView>
   );
 }
@@ -247,6 +325,14 @@ function EditRow({ label, value, onChangeText, placeholder, keyboardType = 'defa
     </View>
   );
 }
+
+
+
+
+
+
+
+
 
 const styles = StyleSheet.create({
   headerTitle: { fontSize: 28, fontWeight: 'bold', color: '#37513f', marginVertical: 10, textAlign: 'center' },
