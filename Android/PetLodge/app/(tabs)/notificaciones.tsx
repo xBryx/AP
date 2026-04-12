@@ -242,6 +242,7 @@
 
 
 import { View, Text, ScrollView, StyleSheet, Alert, RefreshControl, ActivityIndicator } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useState, useCallback } from 'react';
 import { useFocusEffect } from 'expo-router';
 import { useAuth } from '../../constants/AuthContext';
@@ -372,6 +373,7 @@ export default function HomeScreen() {
   }
 
   return (
+    <SafeAreaView style={{ flex: 1 }}>
     <ScrollView
       style={styles.container}
       refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
@@ -394,6 +396,7 @@ export default function HomeScreen() {
         ))
       )}
     </ScrollView>
+    </SafeAreaView>
   );
 }
 
