@@ -91,7 +91,7 @@ export default function HomeScreen() {
 
     setLoading(true);
 
-    const { data, error } = await supabase.auth.signUp({
+    const { data, error } = await supabase!.auth.signUp({
       email: email.trim().toLowerCase(),
       password,
       options: {
@@ -117,7 +117,7 @@ export default function HomeScreen() {
 
     if (data.session) {
       // Auto confirmación en dev (redirige automáticamente por el AuthContext onAuthStateChange)
-      router.replace("/(tabs)");
+      router.replace("/(tabs)/inicio");
     } else if (data.user) {
       // Esperando confirmación por email
       Toast.show({

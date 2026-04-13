@@ -1,19 +1,10 @@
-import { Tabs } from "expo-router";
-import { View } from "react-native";
-import { Tabs } from 'expo-router';
-import React from 'react';
-import { useCallback, useEffect, useState } from 'react';
-import { StyleSheet, View } from 'react-native';
-import { useSegments } from 'expo-router';
+import { Tabs, useSegments } from "expo-router";
+import { useCallback, useEffect, useState } from "react";
+import { StyleSheet, View } from "react-native";
 
-import { HapticTab } from '@/components/haptic-tab';
-import { Colors } from '@/constants/theme';
-import { useColorScheme } from '@/hooks/use-color-scheme';
-import { useAuth } from '../../constants/AuthContext';
-import { supabase } from '../../lib/supabase';
+import { useAuth } from "../../constants/AuthContext";
+import { supabase } from "../../lib/supabase";
 //Para iconos de la hotbar
-import { Ionicons } from '@expo/vector-icons';
-import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 
 import { HapticTab } from "@/components/haptic-tab";
 import { useColorScheme } from "@/hooks/use-color-scheme";
@@ -32,13 +23,13 @@ export default function TabLayout() {
     }
 
     const { count, error } = await supabase
-      .from('notification')
-      .select('id', { count: 'exact', head: true })
-      .eq('user_id', user.id)
-      .eq('read', false);
+      .from("notification")
+      .select("id", { count: "exact", head: true })
+      .eq("user_id", user.id)
+      .eq("read", false);
 
     if (error) {
-      console.error('Error consultando notificaciones no leidas:', error);
+      console.error("Error consultando notificaciones no leidas:", error);
       return;
     }
 
@@ -49,7 +40,7 @@ export default function TabLayout() {
     refreshUnreadNotifications();
   }, [refreshUnreadNotifications, segments]);
 
-  const isInNotificationsTab = segments.includes('notificaciones');
+  const isInNotificationsTab = segments.includes("notificaciones" as never);
 
   return (
     <Tabs
@@ -73,7 +64,7 @@ export default function TabLayout() {
       }}
     >
       <Tabs.Screen
-        name="plantilla"
+        name="inicio"
         options={{
           title: "Inicio",
           tabBarIcon: ({ color, size, focused }) => (
@@ -163,27 +154,24 @@ export default function TabLayout() {
                 transform: [{ translateY: focused ? -6 : 0 }],
               }}
             >
-              <Ionicons
-                name={focused ? "notifications" : "notifications-outline"}
-                size={size}
-                color={focused ? "#FFFFFF" : color}
-              />
+              <View style={styles.iconContainer}>
+                <Ionicons
+                  name={focused ? "notifications" : "notifications-outline"}
+                  size={size}
+                  color={focused ? "#FFFFFF" : color}
+                />
+                {hasUnreadNotifications && !isInNotificationsTab && (
+                  <View style={styles.notificationDot}>
+                    <Ionicons name="checkmark" size={8} color="#FFFFFF" />
+                  </View>
+                )}
+              </View>
             </View>
           ),
         }}
-          title: 'Notificaciones',
-          tabBarIcon: ({ color, size }) => (
-            <View style={styles.iconContainer}>
-              <Ionicons name="notifications" size={size} color={color} />
-              {hasUnreadNotifications && !isInNotificationsTab ? (
-                <View style={styles.notificationDot} />
-              ) : null}
-            </View>
-          ),
-        }}        
       />
       <Tabs.Screen
-        name="index"
+        name="perfil"
         options={{
           title: "Perfil",
           tabBarIcon: ({ color, size, focused }) => (
@@ -207,21 +195,31 @@ export default function TabLayout() {
           ),
         }}
       />
+      <Tabs.Screen
+        name="cambiar_password"
+        options={{
+          href: null,
+        }}
+      />
     </Tabs>
   );
 }
 
 const styles = StyleSheet.create({
   iconContainer: {
-    position: 'relative',
+    position: "relative",
   },
   notificationDot: {
-    position: 'absolute',
-    right: -3,
+    position: "absolute",
+    right: -4,
     top: -2,
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: '#E53935',
+    width: 14,
+    height: 14,
+    borderRadius: 7,
+    backgroundColor: "#4CAF50",
+    justifyContent: "center",
+    alignItems: "center",
+    borderWidth: 1,
+    borderColor: "#FFFFFF",
   },
 });

@@ -1,11 +1,19 @@
-import { View, Text, ScrollView, StyleSheet, Alert, RefreshControl, ActivityIndicator } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { useState, useCallback } from 'react';
-import { useFocusEffect } from 'expo-router';
-import { useAuth } from '../../constants/AuthContext';
-import { supabase } from '../../lib/supabase';
-import { formatDistanceToNow } from 'date-fns';
-import { es } from 'date-fns/locale';
+import { formatDistanceToNow } from "date-fns";
+import { es } from "date-fns/locale";
+import { useFocusEffect } from "expo-router";
+import { useCallback, useState } from "react";
+import {
+  ActivityIndicator,
+  RefreshControl,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+} from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
+import Toast from "react-native-toast-message";
+import { useAuth } from "../../constants/AuthContext";
+import { supabase } from "../../lib/supabase";
 
 type Notification = {
   id: string;
@@ -31,10 +39,10 @@ export default function HomeScreen() {
     }
 
     const { error } = await supabase
-      .from('notification')
+      .from("notification")
       .update({ read: true, read_date: new Date().toISOString() })
-      .eq('user_id', user.id)
-      .eq('read', false);
+      .eq("user_id", user.id)
+      .eq("read", false);
 
     if (error) {
       throw error;
@@ -43,7 +51,11 @@ export default function HomeScreen() {
 
   const fetchNotifications = useCallback(async () => {
     if (!supabase) {
-      Alert.alert('Error', 'No se encontró la configuración de Supabase.');
+      Toast.show({
+        type: "error",
+        text1: "Error",
+        text2: "No se encontro la configuracion de Supabase.",
+      });
       setNotifications([]);
       setLoading(false);
       setRefreshing(false);
@@ -59,17 +71,23 @@ export default function HomeScreen() {
 
     try {
       const { data, error } = await supabase
-        .from('notification')
-        .select('id, reservation_id, template_id, user_id, affair, html_body, sent, read, read_date')
-        .eq('user_id', user.id)
-        .order('sent', { ascending: false });
+        .from("notification")
+        .select(
+          "id, reservation_id, template_id, user_id, affair, html_body, sent, read, read_date",
+        )
+        .eq("user_id", user.id)
+        .order("sent", { ascending: false });
 
       if (error) throw error;
 
       setNotifications((data as Notification[]) ?? []);
     } catch (error) {
-      console.error('Error cargando notificaciones:', error);
-      Alert.alert('Error', 'No se pudieron cargar las notificaciones.');
+      console.error("Error cargando notificaciones:", error);
+      Toast.show({
+        type: "error",
+        text1: "Error",
+        text2: "No se pudieron cargar las notificaciones.",
+      });
       setNotifications([]);
     } finally {
       setLoading(false);
@@ -85,14 +103,14 @@ export default function HomeScreen() {
         try {
           await markAllAsRead();
         } catch (error) {
-          console.error('Error marcando notificaciones como leidas:', error);
+          console.error("Error marcando notificaciones como leidas:", error);
         }
 
         await fetchNotifications();
       };
 
       loadNotifications();
-    }, [fetchNotifications, markAllAsRead])
+    }, [fetchNotifications, markAllAsRead]),
   );
 
   const onRefresh = useCallback(() => {
@@ -102,13 +120,16 @@ export default function HomeScreen() {
 
   const formatDate = (isoString: string | null) => {
     if (!isoString) {
-      return 'fecha desconocida';
+      return "fecha desconocida";
     }
 
     try {
-      return formatDistanceToNow(new Date(isoString), { addSuffix: true, locale: es });
+      return formatDistanceToNow(new Date(isoString), {
+        addSuffix: true,
+        locale: es,
+      });
     } catch {
-      return 'fecha desconocida';
+      return "fecha desconocida";
     }
   };
 
@@ -121,95 +142,109 @@ export default function HomeScreen() {
   }
 
   return (
-    <SafeAreaView style={{ flex: 1 }}>
-    <ScrollView
-      style={styles.container}
-      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
-    >
-      <Text style={styles.headerTitle}>Notificaciones</Text>
+    <SafeAreaView style={styles.safeArea}>
+      <ScrollView
+        style={styles.container}
+        contentContainerStyle={styles.contentContainer}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+        }
+      >
+        <Text style={styles.headerTitle}>Notificaciones</Text>
 
-      {notifications.length === 0 ? (
-        <View style={styles.emptyContainer}>
-          <Text style={styles.emptyText}>No tienes notificaciones</Text>
-        </View>
-      ) : (
-        notifications.map((item) => (
-          <View key={item.id} style={[styles.card, item.read && styles.readCard]}>
-            <View style={styles.cardHeader}>
-              <Text style={styles.cardTitle}>{item.affair}</Text>
-              <Text style={styles.cardDate}>{formatDate(item.sent)}</Text>
-            </View>
-            <Text style={styles.cardBody}>{item.html_body}</Text>
+        {notifications.length === 0 ? (
+          <View style={styles.emptyContainer}>
+            <Text style={styles.emptyText}>No tienes notificaciones</Text>
           </View>
-        ))
-      )}
-    </ScrollView>
+        ) : (
+          notifications.map((item) => (
+            <View
+              key={item.id}
+              style={[styles.card, item.read && styles.readCard]}
+            >
+              <View style={styles.cardHeader}>
+                <Text style={styles.cardTitle}>{item.affair}</Text>
+                <Text style={styles.cardDate}>{formatDate(item.sent)}</Text>
+              </View>
+              <Text style={styles.cardBody}>{item.html_body}</Text>
+            </View>
+          ))
+        )}
+      </ScrollView>
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
+  safeArea: {
+    flex: 1,
+    backgroundColor: "#FFFFFF",
+  },
   container: {
     flex: 1,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: "#FFFFFF",
     paddingHorizontal: 16,
     paddingTop: 20,
   },
+  contentContainer: {
+    paddingBottom: 24,
+  },
   centerContainer: {
     flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: '#FFFFFF',
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: "#FFFFFF",
   },
   headerTitle: {
-    fontSize: 28,
-    fontWeight: 'bold',
-    color: '#37513f',
-    marginBottom: 20,
-    textAlign: 'center',
+    fontSize: 32,
+    fontWeight: "bold",
+    color: "#37513f",
+    marginTop: 16,
+    marginBottom: 14,
+    textAlign: "center",
   },
   card: {
-    backgroundColor: '#E0E0E0',
+    backgroundColor: "#E0E0E0",
     borderRadius: 12,
     padding: 16,
     marginBottom: 12,
     borderWidth: 1,
-    borderColor: '#E0E0E0',
+    borderColor: "#E0E0E0",
   },
   readCard: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: "#FFFFFF",
     opacity: 0.8,
   },
   cardHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
     marginBottom: 8,
   },
   cardTitle: {
     fontSize: 16,
-    fontWeight: 'bold',
-    color: '#1E1E1E',
+    fontWeight: "bold",
+    color: "#1E1E1E",
     flex: 1,
     marginRight: 8,
   },
   cardDate: {
     fontSize: 12,
-    color: '#888',
+    color: "#888",
   },
   cardBody: {
     fontSize: 14,
-    color: '#555',
+    color: "#555",
     lineHeight: 20,
   },
   emptyContainer: {
     flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: "center",
+    alignItems: "center",
     marginTop: 50,
   },
   emptyText: {
     fontSize: 16,
-    color: '#888',
+    color: "#888",
   },
 });

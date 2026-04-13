@@ -4,7 +4,6 @@ import { useLocalSearchParams } from "expo-router";
 import { useCallback, useEffect, useState } from "react";
 import {
   ActivityIndicator,
-  Alert,
   FlatList,
   Modal,
   Pressable,
@@ -254,7 +253,11 @@ export default function HomeScreen() {
 
       if (error) {
         console.error("Error fetching reservations:", error);
-        Alert.alert("Error", "No se pudieron cargar las reservas");
+        Toast.show({
+          type: "error",
+          text1: "Error",
+          text2: "No se pudieron cargar las reservas",
+        });
         return;
       }
 
@@ -358,7 +361,11 @@ export default function HomeScreen() {
       }
     } catch (error) {
       console.error("Error loading reservation catalogs:", error);
-      Alert.alert("Error", "No se pudo cargar la información de reservas");
+      Toast.show({
+        type: "error",
+        text1: "Error",
+        text2: "No se pudo cargar la informacion de reservas",
+      });
     }
   }, [session?.user?.id]);
 
@@ -431,6 +438,18 @@ export default function HomeScreen() {
     setMarkedDates({});
   };
 
+  const openNuevaFromPet = useCallback((petId?: string) => {
+    setIsEditingMode(false);
+    setEditingReservationId(null);
+    setActiveMainTab("nueva");
+    setSelectedPetId(petId ?? null);
+    setStartDate("");
+    setEndDate("");
+    setSelectedLodgingTypeId(null);
+    setSelectedServiceQuantities({});
+    setMarkedDates({});
+  }, []);
+
   useEffect(() => {
     if (activeMainTab === "historial") {
       loadReservations();
@@ -443,11 +462,10 @@ export default function HomeScreen() {
   }, [loadNewReservationCatalogs]);
 
   useEffect(() => {
-    if (params?.action === "nueva" && params?.petId) {
-      setActiveMainTab("nueva");
-      setSelectedPetId(params.petId as string);
+    if (params?.action === "nueva") {
+      openNuevaFromPet((params?.petId as string) || undefined);
     }
-  }, [params?.action, params?.petId]);
+  }, [openNuevaFromPet, params?.action, params?.petId, params?.ts]);
 
   const onRefresh = useCallback(() => {
     setRefreshing(true);
@@ -514,20 +532,36 @@ export default function HomeScreen() {
 
   const handleSubmitReservation = async () => {
     if (!session?.user?.id || !supabase) {
-      Alert.alert("Error", "No se pudo validar tu sesión");
+      Toast.show({
+        type: "error",
+        text1: "Error",
+        text2: "No se pudo validar tu sesion",
+      });
       return;
     }
 
     if (!selectedPetId) {
-      Alert.alert("Error", "Selecciona una mascota");
+      Toast.show({
+        type: "error",
+        text1: "Error",
+        text2: "Selecciona una mascota",
+      });
       return;
     }
     if (!startDate || !endDate) {
-      Alert.alert("Error", "Selecciona un rango de fechas");
+      Toast.show({
+        type: "error",
+        text1: "Error",
+        text2: "Selecciona un rango de fechas",
+      });
       return;
     }
     if (!selectedLodgingTypeId) {
-      Alert.alert("Error", "Selecciona un tipo de hospedaje");
+      Toast.show({
+        type: "error",
+        text1: "Error",
+        text2: "Selecciona un tipo de hospedaje",
+      });
       return;
     }
 

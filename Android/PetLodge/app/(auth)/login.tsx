@@ -16,7 +16,7 @@ export default function Login() {
   const handleLogin = async () => {
     setLoading(true);
     const { data: authData, error: authError } =
-      await supabase.auth.signInWithPassword({
+      await supabase!.auth.signInWithPassword({
         email: email.trim().toLowerCase(),
         password,
       });
@@ -33,7 +33,7 @@ export default function Login() {
 
     if (authData.user) {
       // Verificar si el rol es 'Customer'
-      const { data: profile, error: profileError } = await supabase
+      const { data: profile, error: profileError } = await supabase!
         .from("profile")
         .select("role_id, role(name)")
         .eq("auth_id", authData.user.id)
@@ -46,7 +46,7 @@ export default function Login() {
         !profile ||
         (profile.role && (profile.role as any).name !== "Customer")
       ) {
-        await supabase.auth.signOut();
+        await supabase!.auth.signOut();
         Toast.show({
           type: "error",
           text1: "Acceso denegado",
@@ -55,7 +55,7 @@ export default function Login() {
         return;
       }
 
-      router.replace("/(tabs)");
+      router.replace("/(tabs)/inicio");
     }
   };
 
@@ -133,9 +133,6 @@ export default function Login() {
 }
 
 const styles = StyleSheet.create({
-  icon: {
-    marginRight: 8,
-  },
   inputContainer: {
     flexDirection: "row",
     alignItems: "center",

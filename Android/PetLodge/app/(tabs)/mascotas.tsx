@@ -5,7 +5,6 @@ import { useRouter } from "expo-router";
 import { useCallback, useEffect, useState } from "react";
 import {
   ActivityIndicator,
-  Alert,
   FlatList,
   Modal,
   Pressable,
@@ -22,9 +21,6 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import Toast from "react-native-toast-message";
 import { useAuth } from "../../constants/AuthContext";
 import { supabase } from "../../lib/supabase";
-import { Alert } from "react-native";
-import { Ionicons } from "@expo/vector-icons";
-import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 
 // Validaciones
 const noNulos = (texto: string): boolean => {
@@ -35,7 +31,11 @@ const soloLetras = (texto: string, nombreCampo: string): boolean => {
   if (/^[A-Za-z\s]*$/.test(texto)) {
     return true;
   } else {
-    Alert.alert("Error", "Solo se permiten letras en " + nombreCampo);
+    Toast.show({
+      type: "error",
+      text1: "Error",
+      text2: "Solo se permiten letras en " + nombreCampo,
+    });
     return false;
   }
 };
@@ -44,7 +44,11 @@ const soloNumeros = (numero: string, nombreCampo: string): boolean => {
   if (/^[0-9]*$/.test(numero)) {
     return true;
   } else {
-    Alert.alert("Error", "Solo se permiten números en " + nombreCampo);
+    Toast.show({
+      type: "error",
+      text1: "Error",
+      text2: "Solo se permiten numeros en " + nombreCampo,
+    });
     return false;
   }
 };
@@ -52,13 +56,38 @@ const numerosYletras = (texto: string, nombreCampo: string): boolean => {
   if (/^[A-Za-z0-9]*$/.test(texto)) {
     return true;
   } else {
-    Alert.alert(
-      "Error",
-      "No se permiten caracteres especiales en " + nombreCampo,
-    );
+    Toast.show({
+      type: "error",
+      text1: "Error",
+      text2: "No se permiten caracteres especiales en " + nombreCampo,
+    });
     return false;
   }
 };
+
+const getImageExtension = (uri: string) => {
+  const cleanUri = uri.split("?")[0];
+  const extension = cleanUri.split(".").pop()?.toLowerCase();
+
+  if (!extension || extension.length > 5) {
+    return "jpg";
+  }
+
+  if (extension === "jpeg") {
+    return "jpg";
+  }
+
+  return extension;
+};
+
+const getImageContentType = (extension: string) => {
+  if (extension === "jpg") {
+    return "image/jpeg";
+  }
+
+  return `image/${extension}`;
+};
+
 const MascotaCard = ({
   item,
   handleEdit,
@@ -257,6 +286,47 @@ export default function HomeScreen() {
   const [mascotaToCancel, setMascotaToCancel] = useState<any>(null);
 
   const [editingMascotaId, setEditingMascotaId] = useState<string | null>(null);
+  const [isSaving, setIsSaving] = useState(false);
+
+  const uploadPetPhoto = async (imageUri: string) => {
+    if (!supabase || !session?.user?.id) {
+      throw new Error("No se encontró una sesión activa.");
+    }
+    if (!imageUri || imageUri.startsWith("http")) {
+      return imageUri;
+    }
+
+    const user = session.user;
+    const extension = getImageExtension(imageUri);
+    const contentType = getImageContentType(extension);
+    const safeEmail = (user.email ?? user.id)
+      .toLowerCase()
+      .replace(/[^a-z0-9]/g, "_");
+    const timestamp = new Date().getTime();
+
+    // Ruta: user.id / correoSaneado_pet_photo_timestamp.extension
+    const objectPath = `${user.id}/${safeEmail}_pet_photo_${timestamp}.${extension}`;
+
+    const imageResponse = await fetch(imageUri);
+    const imageArrayBuffer = await imageResponse.arrayBuffer();
+
+    const { error: uploadError } = await supabase.storage
+      .from("pet-photos")
+      .upload(objectPath, imageArrayBuffer, {
+        contentType,
+        upsert: true,
+      });
+
+    if (uploadError) {
+      throw uploadError;
+    }
+
+    const { data } = supabase.storage
+      .from("pet-photos")
+      .getPublicUrl(objectPath);
+
+    return data.publicUrl;
+  };
 
   const resetForm = useCallback(() => {
     setEditingMascotaId(null);
@@ -290,7 +360,11 @@ export default function HomeScreen() {
       if (error) throw error;
       setMascotas(data || []);
     } catch (err: any) {
-      Alert.alert("Error", "Error al cargar mascotas: " + err.message);
+      Toast.show({
+        type: "error",
+        text1: "Error",
+        text2: "Error al cargar mascotas: " + err.message,
+      });
     } finally {
       setLoading(false);
     }
@@ -341,7 +415,12 @@ export default function HomeScreen() {
   const handleReserve = (mascota: any) => {
     router.push({
       pathname: "/(tabs)/reservas",
-      params: { action: "nueva", petId: mascota.id },
+      params: {
+        action: "nueva",
+        petId: mascota.id,
+        source: "mascotas",
+        ts: String(Date.now()),
+      },
     });
   };
 
@@ -358,7 +437,11 @@ export default function HomeScreen() {
         .update({ active: false })
         .eq("id", mascotaToCancel.id);
       if (error) {
-        Alert.alert("Error", error.message);
+        Toast.show({
+          type: "error",
+          text1: "Error",
+          text2: error.message,
+        });
       } else {
         Toast.show({
           type: "success",
@@ -368,7 +451,11 @@ export default function HomeScreen() {
         loadPets();
       }
     } catch (e: any) {
-      Alert.alert("Error", e.message);
+      Toast.show({
+        type: "error",
+        text1: "Error",
+        text2: e.message,
+      });
     } finally {
       setCancelModalVisible(false);
       setMascotaToCancel(null);
@@ -387,30 +474,34 @@ export default function HomeScreen() {
       edad === "" ||
       !noNulos(especie)
     ) {
-      Alert.alert("Error", "Por favor complete los campos obligatorios.");
-  const handleAddMascota = () => {
-    if (!noNulos(nombre)) {
-      Alert.alert("Error", "No se permiten nulos en nombre");
-      return;
-    } else if (!noNulos(especie)) {
-      Alert.alert("Error", "No se permiten nulos en apellido");
-      return;
-    } else if (!noNulos(raza)) {
-      Alert.alert("Error", "cedula");
-      return;
-    } else if (!noNulos(edad.toString())) {
-      Alert.alert("Error", "No se permiten nulos en teléfono");
-      return;
-    } else if (!noNulos(vetNombre)) {
-      Alert.alert("Error", "No se permiten nulos en email");
-      return;
-    } else if (!noNulos(vetContacto.toString())) {
-      Alert.alert("Error", "No se permiten nulos en teléfono");
+      Toast.show({
+        type: "error",
+        text1: "Error",
+        text2: "Por favor complete los campos obligatorios.",
+      });
       return;
     }
     if (!session?.user?.id || !supabase) return;
 
+    setIsSaving(true);
     try {
+      let finalImageUrl = petImage || null;
+
+      if (petImage && !petImage.startsWith("http")) {
+        try {
+          finalImageUrl = await uploadPetPhoto(petImage);
+        } catch (uploadError: any) {
+          console.error("Error al subir foto de mascota:", uploadError);
+          Toast.show({
+            type: "error",
+            text1: "Error",
+            text2: "No se pudo subir la foto de la mascota.",
+          });
+          setIsSaving(false);
+          return;
+        }
+      }
+
       const payload = {
         user_id: session.user.id,
         species_id: especie,
@@ -419,7 +510,7 @@ export default function HomeScreen() {
         age: Number(edad),
         sex: sexo.charAt(0), // 'M' o 'H'
         size: tamano,
-        image_url: petImage || null,
+        image_url: finalImageUrl,
         vaccinated: vacunas,
         vaccine_detail: vacunas ? notaVacunas : null,
         medical_conditions: condMedicas,
@@ -452,22 +543,32 @@ export default function HomeScreen() {
       setActiveTab("misMascotas");
       loadPets();
     } catch (err: any) {
-      Alert.alert("Error al guardar", err.message);
+      Toast.show({
+        type: "error",
+        text1: "Error al guardar",
+        text2: err.message,
+      });
+    } finally {
+      setIsSaving(false);
     }
   };
 
   const handlePickImage = async () => {
-    const permissionResult = await ImagePicker.requestCameraPermissionsAsync();
+    const permissionResult =
+      await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (!permissionResult.granted) {
-      Alert.alert(
-        "Permiso Denegado",
-        "Se necesita permiso para usar la cámara.",
-      );
+      Toast.show({
+        type: "info",
+        text1: "Permiso denegado",
+        text2: "Se necesita permiso para acceder a tu galeria.",
+      });
       return;
     }
-    const result = await ImagePicker.launchCameraAsync({
+    const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      quality: 1,
+      allowsEditing: true,
+      aspect: [1, 1],
+      quality: 0.5,
     });
     if (!result.canceled && result.assets && result.assets.length > 0) {
       setPetImage(result.assets[0].uri);
@@ -506,23 +607,6 @@ export default function HomeScreen() {
       />
     );
   };
-  return (
-    <ScrollView
-      style={{ backgroundColor: "#FFFF" }}
-      contentContainerStyle={{ justifyContent: "center" }}
-    >
-      
-      {/* Switch del encabezado */}
-      <View style={styles.tabContainer}>
-        <Pressable
-          style={[
-            styles.tabButton,
-            activeTab === "misMascotas" && styles.activeTab,
-          ]}
-          onPress={() => setActiveTab("misMascotas")}
-        >
-          <Text>Mis mascotas</Text>
-        </Pressable>
 
   const renderAgregar = () => (
     <ScrollView
@@ -537,7 +621,7 @@ export default function HomeScreen() {
           {petImage ? (
             <Image source={{ uri: petImage }} style={styles.formAvatarImage} />
           ) : (
-            <Ionicons name="person-outline" size={40} color="#7a5c37" />
+            <Ionicons name="camera-outline" size={32} color="#7a5c37" />
           )}
         </Pressable>
       </View>
@@ -545,6 +629,7 @@ export default function HomeScreen() {
       <TextInput
         style={styles.inputStyle}
         placeholder="Nombre"
+        placeholderTextColor="#7a7a7a"
         value={nombre}
         onChangeText={(text) => {
           if (soloLetras(text, "nombre")) setNombre(text);
@@ -566,270 +651,15 @@ export default function HomeScreen() {
           />
         </View>
         <View style={styles.formCol}>
-      {/*Comparación para saber que vista mostrar*/}
-      {activeTab === "misMascotas" ? (
-        <FlatList
-          data={mascotas}
-          keyExtractor={(item) => item.id.toString()}
-          renderItem={({ item }) => (
-            <View style={styles.card}>
-              <View style={styles.labelContainer}>
-                {/* Nombre y raza */}
-                <Text style={styles.nombreMascota}>{item.nombre}</Text>
-              </View>
-              <View style={styles.labelContainer}>
-                {/*Foto de mascota*/}
-                {item.profileImage ? (
-                  <Image
-                    source={{ uri: item.profileImage }}
-                    style={styles.avatarMascota}
-                  />
-                ) : (
-                  <View style={styles.avatarPlaceholder}>
-                    <Text style={styles.avatarInitial}>
-                      {item.nombre.charAt(0).toUpperCase()}
-                    </Text>
-                  </View>
-                )}
-                {/* Información especie */}
-                <Text>
-                  {item.tipo} | {item.raza} | {item.edad}
-                </Text>
-                <Pressable
-               
-                  onPress={() => handleDelete(item)}
-                > <MaterialIcons name="delete" size={24} color="black" />
-                  
-                </Pressable>
-              </View>
-              <View style={styles.labelContainer}>
-                {/* Vacunas  e info veterinario */}
-                <Text style={{ fontWeight: "bold", marginHorizontal: 20 }}>
-                  Vacunas al día
-                </Text>
-                <Text style={{ fontWeight: "bold" }}>Veterinario/a</Text>
-              </View>
-              <View style={styles.labelContainer}>
-                {item.vacunas === true ? (
-                  <Text style={{ marginHorizontal: 20 }}>                            Sí           </Text>
-                ) : (
-                  <Text>                            No           </Text>
-                )}
-                <Text style={{ marginHorizontal: 20 }}>
-                  {item.veterinario} | {item.numeroVeterinario}
-                </Text>
-              </View>
-              {/* Condiciones médicas y notas */}
-              <View style={styles.labelContainer}>
-                <Text style={{ fontWeight: "bold", marginHorizontal: 20 }}>
-                  Condiciones médicas
-                </Text>
-                <Text style={{ fontWeight: "bold", marginHorizontal: 20 }}>
-                  Notas
-                </Text>
-              </View>
-              <View style={styles.labelContainer}>
-              <Text style={{marginHorizontal: 20}}>{item.condicionesMedicas} </Text>              
-              <Text style={{marginHorizontal: 20}}>{item.notas}</Text>
-              </View>
-              <View style={{ flexDirection: "row", gap: 10 }}>
-                <Pressable
-                  style={styles.button}
-                  onPress={() => handleEdit(item)}
-                >
-                  <Text style={styles.textButton}>Editar</Text>
-                </Pressable>
-
-                <Pressable
-                  style={styles.button}
-                  onPress={() => handleReserve(item)}
-                >
-                  <Text style={styles.textButton}>Hacer Reserva</Text>
-                </Pressable>                
-              </View>
-            </View>
-          )}
-        />
-      ) : (
-        <View>
-          {/* AÑADIR MASCOTAS */}
-
-          {/*Foto de mascota*/}
-          <View style={{alignItems:"center"}}>
-          <Pressable onPress={handlePickImage}>
-             <Ionicons name="person" size={15} color="#676767" />
-            
-          </Pressable>
-</View>
-          {/* Nombre de mascota */}
-          <TextInput
-            style={styles.input}
-            placeholder="Nombre"
-            value={nombre}
-            onChangeText={(text) => {
-              if (soloLetras(text, "nombre")) {
-                setNombre(text);
-              }
-            }}
-          />
-          
-          {/* Especie */}
-          <View style={{flexDirection: "row", justifyContent: "center", gap: 10,}} >
-            <View style={{flex:1}}>
-          <Picker
-            selectedValue={especie}
-            onValueChange={(itemValue) => setEspecie(itemValue)}
-          >
-            <Picker.Item label="Seleccione especie" value="" />
-
-            {especies.map((item) => (
-              <Picker.Item
-                key={item.value}
-                label={item.label}
-                value={item.value}
-              />              
-            ))}
-          </Picker>
-          </View>
-          <View style={{flex:1}}>
-          {/* Raza */}
           <TextInput
             style={styles.inputStyle}
             placeholder="Raza"
+            placeholderTextColor="#7a7a7a"
             value={raza}
             onChangeText={(text) => {
               if (soloLetras(text, "raza")) setRaza(text);
             }}
           />
-          </View>
-          </View>
-          <View style={{flexDirection: "row", justifyContent: "center", gap: 10,}} >
-            <View style={{flex:1}}>
-          {/* Edad */}
-          <TextInput
-            style={styles.input}
-            placeholder="Edad"
-            value={edad.toString()}
-            onChangeText={(text) => {
-              if (soloNumeros(text, "edad")) {
-                setEdad(Number(text));
-              }
-            }}            
-          />
-          </View>
-          {/* Sexo */}
-          <View style={{flex:1}}>
-          <Picker
-            selectedValue={sexo}
-            onValueChange={(itemValue) => setSexo(itemValue)}
-            style={styles.input}
-          >
-            <Picker.Item label="Sexo" value="hembra" />
-            <Picker.Item label="Hembra" value="hembra" />
-            <Picker.Item label="Macho" value="macho" />
-          </Picker>
-          </View>
-          </View>
-          <View style={styles.switchContainer}>
-            {/* Vacunas */}
-            <Text>Vacunas al día</Text>
-            <Switch
-              value={vacunas}
-              onValueChange={setVacunas}
-              trackColor={{ false: "#ccc", true: "#4CAF50" }}
-              thumbColor={vacunas ? "#fff" : "#fff"}
-            />
-          </View>
-
-          {/*Solo se muestra si tiene las vacunas activas*/}
-          {vacunas && (
-            <TextInput
-              style={styles.input}
-              placeholder="Especificar vacunas"
-              value={notaVacunas}
-              onChangeText={(text) => {
-                if (numerosYletras(text, "vacunas")) {
-                  setNotaVacunas(text);
-                }
-              }}
-            />
-          )}
-          {/* Condiciones médicas */}
-          <View style={styles.switchContainer}>
-            <Text>Condiciones Médicas</Text>
-            <Switch
-              value={condMedicas}
-              onValueChange={setcondMedicas}
-              trackColor={{ false: "#ccc", true: "#4CAF50" }}
-              thumbColor={condMedicas ? "#fff" : "#fff"}
-            />
-          </View>
-
-          {/*Solo se muestra si tiene condiciones médicas*/}
-          {condMedicas && (
-            <TextInput
-              style={styles.input}
-              placeholder="Especificar condiciones médicas"
-              value={notaCondMedicas}
-              onChangeText={(text) => {
-                if (numerosYletras(text, "condiciones médicas")) {
-                  setNotasCondMedicas(text);
-                }
-              }}
-            />
-          )}
-          {/* Tamaño */}
-          <View style={styles.sizeContainer}>
-            {["pequeño", "mediano", "grande"].map((size) => (
-              <Pressable
-                key={size}
-                style={[
-                  styles.sizeButton,
-                  tamano === size && styles.sizeButtonActive,
-                ]}
-                onPress={() => setTamano(size)}
-              >
-                <Text
-                  style={
-                    tamano === size ? styles.sizeTextActive : styles.sizeText
-                  }
-                >
-                  {size.charAt(0).toUpperCase() + size.slice(1)}
-                </Text>
-              </Pressable>
-            ))}
-          </View>
-          {/* Info veterinario */}
-          <TextInput
-            style={styles.input}
-            placeholder="Nombre del veterinario"
-            value={vetNombre}
-            onChangeText={(text) => {
-              if (soloLetras(text, "veterinario")) {
-                setVetNombre(text);
-              }
-            }}
-          />
-          <TextInput
-            style={styles.input}
-            placeholder="Contacto del veterinario"
-            value={vetContacto.toString()}
-            onChangeText={(text) => {
-              if (soloNumeros(text, "numero veterinario")) {
-                setVetContacto(Number(text));
-              }
-            }}
-          />
-          {/* Notas */}
-          <TextInput
-            style={styles.input}
-            placeholder="Notas Adicionales"
-            value={nota}
-            onChangeText={setNota}
-          />
-          <Pressable style={styles.button} onPress={handleAddMascota}>
-            <Text style={styles.textButton}>Guardar mascota</Text>
-          </Pressable>
         </View>
       </View>
 
@@ -838,6 +668,7 @@ export default function HomeScreen() {
           <TextInput
             style={styles.inputStyle}
             placeholder="Edad (Meses)"
+            placeholderTextColor="#7a7a7a"
             value={edad.toString()}
             keyboardType="numeric"
             onChangeText={(text) => setEdad(text ? Number(text) : "")}
@@ -894,6 +725,7 @@ export default function HomeScreen() {
         <TextInput
           style={styles.inputStyle}
           placeholder="Especificar Vacunas (Opcional)"
+          placeholderTextColor="#7a7a7a"
           value={notaVacunas}
           onChangeText={setNotaVacunas}
         />
@@ -913,6 +745,7 @@ export default function HomeScreen() {
         <TextInput
           style={styles.inputStyle}
           placeholder="Especificar Condiciones Medicas (Opcional)"
+          placeholderTextColor="#7a7a7a"
           value={notaCondMedicas}
           onChangeText={setNotasCondMedicas}
         />
@@ -921,26 +754,37 @@ export default function HomeScreen() {
       <TextInput
         style={styles.inputStyle}
         placeholder="Nombre del Veterinario (Opcional)"
+        placeholderTextColor="#7a7a7a"
         value={vetNombre}
         onChangeText={setVetNombre}
       />
       <TextInput
         style={styles.inputStyle}
         placeholder="Contacto del veterinario (Opcional)"
+        placeholderTextColor="#7a7a7a"
         value={vetContacto}
         onChangeText={setVetContacto}
       />
       <TextInput
         style={styles.inputStyle}
         placeholder="Notas especiales (Opcional)"
+        placeholderTextColor="#7a7a7a"
         value={nota}
         onChangeText={setNota}
       />
 
-      <Pressable style={styles.button} onPress={handleAddMascota}>
-        <Text style={styles.textButton}>
-          {editingMascotaId ? "Actualizar Mascota" : "Guardar Mascota"}
-        </Text>
+      <Pressable
+        style={[styles.button, isSaving && { opacity: 0.7 }]}
+        onPress={handleAddMascota}
+        disabled={isSaving}
+      >
+        {isSaving ? (
+          <ActivityIndicator color="#FFFFFF" />
+        ) : (
+          <Text style={styles.textButton}>
+            {editingMascotaId ? "Actualizar Mascota" : "Guardar Mascota"}
+          </Text>
+        )}
       </Pressable>
 
       {editingMascotaId && (
@@ -950,6 +794,7 @@ export default function HomeScreen() {
             resetForm();
             setActiveTab("misMascotas");
           }}
+          disabled={isSaving}
         >
           <Text style={[styles.textButton, { color: "#333" }]}>
             Cancelar Edición
@@ -1044,53 +889,6 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 32,
     fontWeight: "bold",
-  icon: {
-    marginRight: 8,
-  },
-    inputContainer: {
-    flexDirection: "row",
-    alignItems: "center",
-    borderWidth: 1,
-    borderColor: "#ccc",
-    borderRadius: 8,
-    paddingHorizontal: 10,
-    backgroundColor: "#f3f3f3",
-    marginBottom: 15,
-  },
-  labelContainer: {
-    flexDirection: "row",
-    alignItems: "center",
-    borderWidth: 1,
-    borderColor: "#dfe9ea",
-    borderRadius: 8,
-    paddingHorizontal: 30,
-    backgroundColor: "#dfe9ea",
-    marginBottom: 15,
-  },
-  input: {
-    borderWidth: 1,
-    borderColor: "#A8A8A9",
-    backgroundColor: "#f3f3f3",
-    color: "#676767",
-    marginBottom: 10,
-    padding: 10,
-    borderRadius: 5,
-  },
-  nameContainer: {
-    color: "#37513f",
-    flexDirection: "row",
-    textAlign: "center",
-    fontSize: 30,
-    gap: 8,
-    fontWeight: "bold",
-  },
-  container: {
-    flex: 1,
-    backgroundColor: "#ffffff",
-    justifyContent: "center",
-    padding: 20,
-  },
-  titleContainer: {
     color: "#37513f",
     marginTop: 16,
     marginBottom: 14,
@@ -1262,44 +1060,7 @@ const styles = StyleSheet.create({
   },
   textButton: {
     color: "#ffffff",
-    marginBottom: 10,
-    fontSize: 20,
-  },
-  textLink: {
-    color: "#4e6e58",
-    marginBottom: 10,
-    fontSize: 15,
-    textAlign: "center",
-  },
-  tabContainer: {
-    flexDirection: "row",
-    backgroundColor: "#ddd",
-    borderRadius: 20,
-    padding: 4,
-    marginBottom: 10,
-  },
-  tabButton: {
-    flex: 1,
-    padding: 10,
-    alignItems: "center",
-    borderRadius: 20,
-  },
-  activeTab: {
-    backgroundColor: "#fff",
-  },
-  card: {
-    backgroundColor: "#dfe9ea",
-    alignItems: "center",
-    padding: 15,
-    borderRadius: 10,
-    marginBottom: 10,
-  },
-  nombreMascota: {
-    color: "#37513f",
-    flexDirection: "row",
-    textAlign: "center",
     fontSize: 16,
-    gap: 8,
     fontWeight: "bold",
   },
   switchContainer: {
@@ -1413,6 +1174,7 @@ const styles = StyleSheet.create({
     height: 50,
     backgroundColor: "#e4e4e4ff",
     fontSize: 14,
+    color: "#333",
   },
   formRow: {
     flexDirection: "row",

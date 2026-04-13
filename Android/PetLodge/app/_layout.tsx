@@ -81,20 +81,15 @@ function RootNavigator() {
 
   return (
     <Stack screenOptions={{ headerShown: false }}>
+      <Stack.Screen name="index" />
       {session ? ( //Existe el usuario (Login guardado)
-        <>
-          <Stack.Screen name="(tabs)" />
-          <Stack.Screen name="(auth)/change_password" />
-        </>
+        <Stack.Screen name="(tabs)" />
       ) : (
-        //No está logeado
-        <>
-          <Stack.Screen name="(auth)/login" />
-          <Stack.Screen name="(auth)/register" />
-          <Stack.Screen name="(auth)/forget_password" />
-          <Stack.Screen name="(auth)/change_password" />
-        </>
+        //No estÃ¡ logeado
+        <Stack.Screen name="(auth)/login" />
       )}
+      <Stack.Screen name="(auth)/register" />
+      <Stack.Screen name="(auth)/forget_password" />
     </Stack>
   );
 }

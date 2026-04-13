@@ -19,16 +19,36 @@ export const AuthProvider = ({ children }: any) => {
 
   useEffect(() => {
     const fetchSession = async () => {
+      if (!supabase) {
+        setSession(null);
+        setUser(null);
+        setLoading(false);
+        return;
+      }
+
       const {
         data: { session },
         error,
       } = await supabase.auth.getSession();
+
+      if (error) {
+        console.error("Error getting session:", error.message);
+        setSession(null);
+        setUser(null);
+        setLoading(false);
+        return;
+      }
+
       setSession(session);
       setUser(session?.user ?? null);
       setLoading(false);
     };
 
     fetchSession();
+
+    if (!supabase) {
+      return;
+    }
 
     const { data: authListener } = supabase.auth.onAuthStateChange(
       (_event, session) => {
@@ -44,6 +64,12 @@ export const AuthProvider = ({ children }: any) => {
   }, []);
 
   const signOut = async () => {
+    if (!supabase) {
+      setSession(null);
+      setUser(null);
+      return;
+    }
+
     const { error } = await supabase.auth.signOut();
 
     if (error) {

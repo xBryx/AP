@@ -4,8 +4,8 @@ import { router, useFocusEffect } from "expo-router";
 import { useCallback, useEffect, useState } from "react";
 import {
     ActivityIndicator,
-    Alert,
     Image,
+    Modal,
     Pressable,
     ScrollView,
     StyleSheet,
@@ -14,6 +14,7 @@ import {
     View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import Toast from "react-native-toast-message";
 import { useAuth } from "../../constants/AuthContext";
 import { supabase } from "../../lib/supabase";
 
@@ -73,6 +74,7 @@ export default function HomeScreen() {
   const { user, signOut, loading: authLoading } = useAuth();
   const [petCount, setPetCount] = useState(0);
   const [loading, setLoading] = useState(false);
+  const [showLogoutDialog, setShowLogoutDialog] = useState(false);
 
   // Estado local del perfil
   const [profile, setProfile] = useState<Profile>(DEFAULT_PROFILE);
@@ -138,7 +140,11 @@ export default function HomeScreen() {
       setEditProfileImage(profileFromDb.profileImage);
     } catch (error) {
       console.error("Error loading profile:", error);
-      Alert.alert("Error", "No se pudo cargar el perfil del usuario.");
+      Toast.show({
+        type: "error",
+        text1: "Error",
+        text2: "No se pudo cargar el perfil del usuario.",
+      });
     }
   }, [resetProfileState, user?.email, user?.id]);
 
@@ -216,7 +222,11 @@ export default function HomeScreen() {
   const handleChangeProfileImage = async () => {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (status !== "granted") {
-      Alert.alert("Permiso denegado", "Necesitamos acceso a tu galería.");
+      Toast.show({
+        type: "info",
+        text1: "Permiso denegado",
+        text2: "Necesitamos acceso a tu galeria.",
+      });
       return;
     }
     const result = await ImagePicker.launchImageLibraryAsync({
@@ -271,6 +281,14 @@ export default function HomeScreen() {
     return /^\d{8}$/.test(trimmed);
   };
 
+  const hasChanges =
+    editNombre.trim() !== profile.nombre ||
+    editCedula.trim() !== profile.cedula ||
+    editEmail.trim() !== profile.email ||
+    editTelefono.trim() !== profile.telefono ||
+    editDireccion.trim() !== profile.direccion ||
+    (editProfileImage !== "" && editProfileImage !== profile.profileImage);
+
   const handleSave = async () => {
     if (
       !editNombre.trim() ||
@@ -279,38 +297,65 @@ export default function HomeScreen() {
       !editTelefono.trim() ||
       !editDireccion.trim()
     ) {
-      Alert.alert("Error", "Todos los campos son obligatorios");
+      Toast.show({
+        type: "error",
+        text1: "Error",
+        text2: "Todos los campos son obligatorios",
+      });
+      return;
+    }
+
+    if (!hasChanges) {
+      Toast.show({
+        type: "info",
+        text1: "Sin cambios",
+        text2: "No has modificado ningún dato del perfil.",
+      });
       return;
     }
 
     if (!isValidNombre(editNombre)) {
-      Alert.alert("Error", "El nombre solo puede contener letras");
+      Toast.show({
+        type: "error",
+        text1: "Error",
+        text2: "El nombre solo puede contener letras",
+      });
       return;
     }
 
     if (!isValidCedula(editCedula)) {
-      Alert.alert(
-        "Error",
-        "La cédula debe contener solo números y mínimo 9 dígitos",
-      );
+      Toast.show({
+        type: "error",
+        text1: "Error",
+        text2: "La cedula debe contener solo numeros y minimo 9 digitos",
+      });
       return;
     }
 
     if (!isValidEmail(editEmail)) {
-      Alert.alert("Error", "El email no tiene un formato válido");
+      Toast.show({
+        type: "error",
+        text1: "Error",
+        text2: "El email no tiene un formato valido",
+      });
       return;
     }
 
     if (!isValidTelefono(editTelefono)) {
-      Alert.alert(
-        "Error",
-        "El teléfono debe contener solo 8 dígitos numéricos",
-      );
+      Toast.show({
+        type: "error",
+        text1: "Error",
+        text2: "El telefono debe contener solo 8 digitos numericos",
+      });
       return;
     }
 
     if (!supabase || !user?.id) {
-      Alert.alert("Error", "No se encontró una sesión activa.");
+      Toast.show({
+        type: "error",
+        text1: "Error",
+        text2: "No se encontro una sesion activa.",
+      });
       return;
     }
 
@@ -322,7 +367,11 @@ export default function HomeScreen() {
         profileImageUrl = await uploadProfilePhoto(editProfileImage);
       } catch (error) {
         console.error("Error uploading profile photo:", error);
-        Alert.alert("Error", "No se pudo subir la foto de perfil.");
+        Toast.show({
+          type: "error",
+          text1: "Error",
+          text2: "No se pudo subir la foto de perfil.",
+        });
         setLoading(false);
         return;
       }
@@ -355,11 +404,19 @@ export default function HomeScreen() {
       }
 
       setProfile(updatedProfile);
-  setEditProfileImage(updatedProfile.profileImage);
-      Alert.alert("Éxito", "Perfil actualizado correctamente");
+      setEditProfileImage(updatedProfile.profileImage);
+      Toast.show({
+        type: "success",
+        text1: "Éxito",
+        text2: "Perfil actualizado correctamente",
+      });
     } catch (error) {
       console.error("Error saving profile:", error);
-      Alert.alert("Error", "No se pudo guardar el perfil");
+      Toast.show({
+        type: "error",
+        text1: "Error",
+        text2: "No se pudo guardar el perfil.",
+      });
     } finally {
       setLoading(false);
     }
@@ -368,36 +425,53 @@ export default function HomeScreen() {
   const displayName = profile.nombre;
 
   const goToMascotas = () => {
-    router.push("/mascotas");
+    router.push("/(tabs)/mascotas");
   };
 
   const change_password = () => {
-    router.push("/(auth)/change_password");
+    router.push("/(tabs)/cambiar_password");
   };
 
   const confirmLogout = () => {
-    Alert.alert("Cerrar sesión", "¿Estás seguro?", [
-      { text: "Cancelar", style: "cancel" },
-      {
-        text: "Sí, cerrar",
-        onPress: async () => {
-          try {
-            await signOut();
-            resetProfileState();
-            router.replace("/(auth)/login");
-          } catch (error) {
-            console.error("Error closing session:", error);
-            Alert.alert("Error", "No se pudo cerrar la sesión.");
-          }
-        },
-      },
-    ]);
+    setShowLogoutDialog(true);
+  };
+
+  const handleLogout = async () => {
+    try {
+      await signOut();
+      setShowLogoutDialog(false);
+      resetProfileState();
+      Toast.show({
+        type: "success",
+        text1: "Sesion cerrada",
+        text2: "Vuelve pronto.",
+      });
+      router.replace("/(auth)/login");
+    } catch (error) {
+      console.error("Error closing session:", error);
+      Toast.show({
+        type: "error",
+        text1: "Error",
+        text2: "No se pudo cerrar la sesion.",
+      });
+    }
   };
 
   return (
-    <SafeAreaView style={{ flex: 1 }}>
+    <SafeAreaView style={styles.screen}>
       <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
-        <Text style={styles.headerTitle}>Perfil</Text>
+        <View style={styles.headerContainer}>
+          <View style={styles.headerSideSpace} />
+          <Text style={styles.headerTitle}>Perfil</Text>
+          <Pressable
+            onPress={confirmLogout}
+            style={styles.logoutButton}
+            android_ripple={{ color: "#f4d3d3", borderless: true }}
+            hitSlop={{ top: 16, bottom: 16, left: 16, right: 16 }}
+          >
+            <Ionicons name="log-out-outline" size={28} color="#E53935" />
+          </Pressable>
+        </View>
         {/* Foto de perfil */}
         <Pressable
           onPress={handleChangeProfileImage}
@@ -472,6 +546,15 @@ export default function HomeScreen() {
           }
         </View>
 
+        {hasChanges && (
+          <View style={styles.warningContainer}>
+            <Ionicons name="warning" size={16} color="#f57c00" />
+            <Text style={styles.warningText}>
+              Tienes cambios pendientes de guardar
+            </Text>
+          </View>
+        )}
+
         {/* Botones */}
         <View style={styles.buttonContainer}>
           {/* Botón Cambiar Contraseña - ancho completo */}
@@ -479,28 +562,49 @@ export default function HomeScreen() {
             <Text style={styles.buttonText}>Cambiar Contraseña</Text>
           </Pressable>
 
-          {/* Contenedor para los dos botones en fila */}
-          <View style={styles.rowButtons}>
-            <Pressable
-              style={[styles.buttonHalf, styles.buttonSave]}
-              onPress={handleSave}
-              disabled={loading}
-            >
-              {loading ? (
-                <ActivityIndicator color="#FFFFFF" />
-              ) : (
-                <Text style={styles.buttonText}>Guardar</Text>
-              )}
-            </Pressable>
-            <Pressable
-              style={[styles.buttonHalf, styles.buttonCerrarSesion]}
-              onPress={confirmLogout}
-            >
-              <Text style={styles.buttonText}>Cerrar Sesión</Text>
-            </Pressable>
-          </View>
+          <Pressable
+            style={[styles.buttonFullWidth, { marginBottom: 50 }]}
+            onPress={handleSave}
+            disabled={loading}
+          >
+            {loading ? (
+              <ActivityIndicator color="#FFFFFF" />
+            ) : (
+              <Text style={styles.buttonText}>Guardar</Text>
+            )}
+          </Pressable>
         </View>
       </ScrollView>
+
+      <Modal
+        transparent
+        animationType="fade"
+        visible={showLogoutDialog}
+        onRequestClose={() => setShowLogoutDialog(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>Cerrar sesion</Text>
+            <Text style={styles.modalMessage}>
+              Estas seguro de que quieres salir?
+            </Text>
+            <View style={styles.modalButtons}>
+              <Pressable
+                style={[styles.modalButton, styles.modalButtonCancel]}
+                onPress={() => setShowLogoutDialog(false)}
+              >
+                <Text style={styles.modalButtonCancelText}>No</Text>
+              </Pressable>
+              <Pressable
+                style={[styles.modalButton, styles.modalButtonConfirm]}
+                onPress={handleLogout}
+              >
+                <Text style={styles.modalButtonConfirmText}>Si, cerrar</Text>
+              </Pressable>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -540,12 +644,34 @@ function EditRow({
 }
 
 const styles = StyleSheet.create({
+  screen: {
+    flex: 1,
+    backgroundColor: "#FFFFFF",
+  },
+  headerContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    minHeight: 44,
+    marginTop: 16,
+    marginBottom: 14,
+  },
+  headerSideSpace: {
+    width: 44,
+  },
   headerTitle: {
-    fontSize: 28,
+    flex: 1,
+    fontSize: 32,
     fontWeight: "bold",
     color: "#37513f",
-    marginVertical: 10,
     textAlign: "center",
+  },
+  logoutButton: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    justifyContent: "center",
+    alignItems: "center",
   },
   button: {
     backgroundColor: "#4A3717",
@@ -710,27 +836,85 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     alignItems: "center",
   },
-  rowButtons: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    gap: 12,
-    marginBottom: 50,
-  },
-  buttonHalf: {
-    flex: 1,
-    paddingVertical: 14,
-    borderRadius: 8,
-    alignItems: "center",
-  },
-  buttonSave: {
-    backgroundColor: "#4A3717",
-  },
-  buttonCerrarSesion: {
-    backgroundColor: "#E53935",
-  },
   buttonText: {
     color: "#FFFFFF",
     fontSize: 16,
     fontWeight: "600",
+  },
+  warningContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#fff3e0",
+    padding: 10,
+    borderRadius: 8,
+    marginBottom: 10,
+    borderWidth: 1,
+    borderColor: "#ffe0b2",
+    gap: 6,
+  },
+  warningText: {
+    color: "#e65100",
+    fontSize: 14,
+    fontWeight: "500",
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0, 0, 0, 0.5)",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  modalContent: {
+    width: "80%",
+    backgroundColor: "white",
+    borderRadius: 16,
+    padding: 24,
+    alignItems: "center",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
+    elevation: 5,
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: "bold",
+    color: "#37513f",
+    marginBottom: 12,
+  },
+  modalMessage: {
+    fontSize: 16,
+    color: "#555",
+    textAlign: "center",
+    marginBottom: 24,
+    lineHeight: 22,
+  },
+  modalButtons: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    width: "100%",
+  },
+  modalButton: {
+    flex: 1,
+    paddingVertical: 12,
+    borderRadius: 8,
+    alignItems: "center",
+    marginHorizontal: 8,
+  },
+  modalButtonCancel: {
+    backgroundColor: "#e4e4e4",
+  },
+  modalButtonCancelText: {
+    color: "#555",
+    fontWeight: "bold",
+    fontSize: 16,
+  },
+  modalButtonConfirm: {
+    backgroundColor: "#D9534F",
+  },
+  modalButtonConfirmText: {
+    color: "white",
+    fontWeight: "bold",
+    fontSize: 16,
   },
 });
