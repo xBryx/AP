@@ -133,6 +133,33 @@ export default function Login() {
 }
 
 const styles = StyleSheet.create({
+  icon: {
+    marginRight: 8,
+  },
+  inputContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    borderWidth: 1,
+    borderColor: "#ccc",
+    borderRadius: 8,
+    paddingHorizontal: 10,
+    backgroundColor: "#f3f3f3",
+    marginBottom: 15,
+  },
+  input: {
+    flex: 1,
+    height: 40,
+    color: "#676767",
+  },
+  textContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    borderWidth: 1,
+    borderColor: "#ffffff",
+    borderRadius: 8,
+    paddingHorizontal: 10,
+    backgroundColor: "#ffffff",
+  },
   container: {
     flex: 1,
     backgroundColor: "#ffffff",

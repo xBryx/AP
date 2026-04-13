@@ -7,6 +7,7 @@ import * as ImagePicker from "expo-image-picker";
 import { FlatList } from "react-native";
 import { ScrollView } from "react-native";
 import { Alert } from "react-native";
+import { Ionicons } from "@expo/vector-icons";
 //Navegación
 import { router } from "expo-router";
 import { Link } from "expo-router";
@@ -48,7 +49,7 @@ export default function HomeScreen() {
     { label: "Ave", value: "ave" },
     { label: "Conejo", value: "conejo" },
   ];
- const [nombre, setNombre] = useState("");
+  const [nombre, setNombre] = useState("");
   const [especie, setEspecie] = useState("perro");
   const [raza, setRaza] = useState("");
   const [edad, setEdad] = useState<number>(1);
@@ -64,7 +65,7 @@ export default function HomeScreen() {
   const [petImage, setPetImage] = useState("");
 
   const handleEditMascota = () => {
-if (!noNulos(nombre)) {
+    if (!noNulos(nombre)) {
       Alert.alert("Error", "No se permiten nulos en nombre");
       return;
     } else if (!noNulos(especie)) {
@@ -101,185 +102,200 @@ if (!noNulos(nombre)) {
     };
   };
 
-    const handlePickImage = async () => {
-      const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ImagePicker.MediaTypeOptions.Images,
-        quality: 1,
-      });
-  
-      if (!result.canceled) {
-        setPetImage(result.assets[0].uri);
-      }
-    };
+  const handlePickImage = async () => {
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      quality: 1,
+    });
+
+    if (!result.canceled) {
+      setPetImage(result.assets[0].uri);
+    }
+  };
 
   return (
-    <View style={styles.container}>
-     {/* AÑADIR MASCOTAS */}
-    
-              {/*Foto de mascota*/}
-              <Pressable onPress={handlePickImage} style={styles.button}>
-                <Text style={styles.textButton}>Seleccionar imagen</Text>
-              </Pressable>
-    
-              {/* Nombre de mascota */}
-              <TextInput
-                style={styles.input}
-                placeholder="Nombre"
-                value={nombre}
-                onChangeText={(text) => {
-                  if (soloLetras(text, "nombre")) {
-                    setNombre(text);
-                  }
-                }}
+    <ScrollView
+      style={{ backgroundColor: "#FFFF" }}
+      contentContainerStyle={{ justifyContent: "center" }}
+    >
+     <Text style={styles.titleContainer}>Editar Mascota</Text>
+
+      {/*Foto de mascota*/}
+      <View style={{ alignItems: "center" }}>
+        <Pressable onPress={handlePickImage}>
+          <Ionicons name="person" size={15} color="#676767" />
+        </Pressable>
+      </View>
+      {/* Nombre de mascota */}
+      <TextInput
+        style={styles.input}
+        placeholder="Nombre"
+        value={nombre}
+        onChangeText={(text) => {
+          if (soloLetras(text, "nombre")) {
+            setNombre(text);
+          }
+        }}
+      />
+
+      {/* Especie */}
+      <View style={{ flexDirection: "row", justifyContent: "center", gap: 10 }}>
+        <View style={{ flex: 1 }}>
+          <Picker
+            selectedValue={especie}
+            onValueChange={(itemValue) => setEspecie(itemValue)}
+          >
+            <Picker.Item label="Seleccione especie" value="" />
+
+            {especies.map((item) => (
+              <Picker.Item
+                key={item.value}
+                label={item.label}
+                value={item.value}
               />
-              {/* Especie */}
-              <Picker
-                selectedValue={especie}
-                onValueChange={(itemValue) => setEspecie(itemValue)}
-              >
-                <Picker.Item label="Seleccione especie" value="" />
-    
-                {especies.map((item) => (
-                  <Picker.Item
-                    key={item.value}
-                    label={item.label}
-                    value={item.value}
-                  />
-                ))}
-              </Picker>
-              {/* Raza */}
-              <TextInput
-                style={styles.input}
-                placeholder="Raza"
-                value={raza}
-                onChangeText={(text) => {
-                  if (soloLetras(text, "raza")) {
-                    setRaza(text);
-                  }
-                }}
-              />
-              {/* Edad */}
-              <TextInput
-                style={styles.input}
-                placeholder="Edad"
-                value={edad.toString()}
-                onChangeText={(text) => {
-                  if (soloNumeros(text, "edad")) {
-                    setEdad(Number(text));
-                  }
-                }}
-              />
-              {/* Sexo */}
-              <Picker
-                selectedValue={sexo}
-                onValueChange={(itemValue) => setSexo(itemValue)}
-                style={styles.input}
-              >
-                <Picker.Item label="Sexo" value="hembra" />
-                <Picker.Item label="Hembra" value="hembra" />
-                <Picker.Item label="Macho" value="macho" />
-              </Picker>
-              <View style={styles.switchContainer}>
-                {/* Vacunas */}
-                <Text>Vacunas al día</Text>
-                <Switch
-                  value={vacunas}
-                  onValueChange={setVacunas}
-                  trackColor={{ false: "#ccc", true: "#4CAF50" }}
-                  thumbColor={vacunas ? "#fff" : "#fff"}
-                />
-              </View>
-    
-              {/*Solo se muestra si tiene las vacunas activas*/}
-              {vacunas && (
-                <TextInput
-                  style={styles.input}
-                  placeholder="Especificar vacunas"
-                  value={notaVacunas}
-                  onChangeText={(text) => {
-                  if (numerosYletras(text, "vacunas")) {
-                    setNotaVacunas(text);
-                  }
-                }}
-                />
-              )}
-              {/* Condiciones médicas */}
-              <View style={styles.switchContainer}>
-                <Text>Condiciones Médicas</Text>
-                <Switch
-                  value={condMedicas}
-                  onValueChange={setcondMedicas}
-                  trackColor={{ false: "#ccc", true: "#4CAF50" }}
-                  thumbColor={condMedicas ? "#fff" : "#fff"}
-                />
-              </View>
-    
-              {/*Solo se muestra si tiene condiciones médicas*/}
-              {condMedicas && (
-                <TextInput
-                  style={styles.input}
-                  placeholder="Especificar condiciones médicas"
-                  value={notaCondMedicas}
-                  onChangeText={(text) => {
-                  if (numerosYletras(text, "condiciones médicas")) {
-                    setNotasCondMedicas(text);
-                  }
-                }}
-                />
-              )}
-              {/* Tamaño */}
-              <View style={styles.sizeContainer}>
-                {["pequeño", "mediano", "grande"].map((size) => (
-                  <Pressable
-                    key={size}
-                    style={[
-                      styles.sizeButton,
-                      tamano === size && styles.sizeButtonActive,
-                    ]}
-                    onPress={() => setTamano(size)}
-                  >
-                    <Text
-                      style={
-                        tamano === size ? styles.sizeTextActive : styles.sizeText
-                      }
-                    >
-                      {size.charAt(0).toUpperCase() + size.slice(1)}
-                    </Text>
-                  </Pressable>
-                ))}
-              </View>
-              {/* Info veterinario */}
-              <TextInput
-                style={styles.input}
-                placeholder="Nombre del veterinario"
-                value={vetNombre}
-                onChangeText={(text) => {
-                  if (soloLetras(text, "veterinario")) {
-                    setVetNombre(text);
-                  }
-                }}
-              />
-              <TextInput
-                style={styles.input}
-                placeholder="Contacto del veterinario"
-                value={vetContacto.toString()}
-                onChangeText={(text) => {
-                  if (soloNumeros(text, "numero veterinario")) {
-                    setVetContacto(Number(text));
-                  }
-                }}
-              />
-              {/* Notas */}
-              <TextInput
-                style={styles.input}
-                placeholder="Notas Adicionales"
-                value={nota}
-                onChangeText={setNota}
-              />
-              <Pressable style={styles.button} onPress={handleEditMascota}>
-                <Text style={styles.textButton}>Guardar mascota</Text>
-              </Pressable>
-            </View>             
+            ))}
+          </Picker>
+        </View>
+        <View style={{ flex: 1 }}>
+          {/* Raza */}
+          <TextInput
+            style={styles.input}
+            placeholder="Raza"
+            value={raza}
+            onChangeText={(text) => {
+              if (soloLetras(text, "raza")) {
+                setRaza(text);
+              }
+            }}
+          />
+        </View>
+      </View>
+      <View style={{ flexDirection: "row", justifyContent: "center", gap: 10 }}>
+        <View style={{ flex: 1 }}>
+          {/* Edad */}
+          <TextInput
+            style={styles.input}
+            placeholder="Edad"
+            value={edad.toString()}
+            onChangeText={(text) => {
+              if (soloNumeros(text, "edad")) {
+                setEdad(Number(text));
+              }
+            }}
+          />
+        </View>
+        {/* Sexo */}
+        <View style={{ flex: 1 }}>
+          <Picker
+            selectedValue={sexo}
+            onValueChange={(itemValue) => setSexo(itemValue)}
+            style={styles.input}
+          >
+            <Picker.Item label="Sexo" value="hembra" />
+            <Picker.Item label="Hembra" value="hembra" />
+            <Picker.Item label="Macho" value="macho" />
+          </Picker>
+        </View>
+      </View>
+      <View style={styles.switchContainer}>
+        {/* Vacunas */}
+        <Text>Vacunas al día</Text>
+        <Switch
+          value={vacunas}
+          onValueChange={setVacunas}
+          trackColor={{ false: "#ccc", true: "#4CAF50" }}
+          thumbColor={vacunas ? "#fff" : "#fff"}
+        />
+      </View>
+
+      {/*Solo se muestra si tiene las vacunas activas*/}
+      {vacunas && (
+        <TextInput
+          style={styles.input}
+          placeholder="Especificar vacunas"
+          value={notaVacunas}
+          onChangeText={(text) => {
+            if (numerosYletras(text, "vacunas")) {
+              setNotaVacunas(text);
+            }
+          }}
+        />
+      )}
+      {/* Condiciones médicas */}
+      <View style={styles.switchContainer}>
+        <Text>Condiciones Médicas</Text>
+        <Switch
+          value={condMedicas}
+          onValueChange={setcondMedicas}
+          trackColor={{ false: "#ccc", true: "#4CAF50" }}
+          thumbColor={condMedicas ? "#fff" : "#fff"}
+        />
+      </View>
+
+      {/*Solo se muestra si tiene condiciones médicas*/}
+      {condMedicas && (
+        <TextInput
+          style={styles.input}
+          placeholder="Especificar condiciones médicas"
+          value={notaCondMedicas}
+          onChangeText={(text) => {
+            if (numerosYletras(text, "condiciones médicas")) {
+              setNotasCondMedicas(text);
+            }
+          }}
+        />
+      )}
+      {/* Tamaño */}
+      <View style={styles.sizeContainer}>
+        {["pequeño", "mediano", "grande"].map((size) => (
+          <Pressable
+            key={size}
+            style={[
+              styles.sizeButton,
+              tamano === size && styles.sizeButtonActive,
+            ]}
+            onPress={() => setTamano(size)}
+          >
+            <Text
+              style={tamano === size ? styles.sizeTextActive : styles.sizeText}
+            >
+              {size.charAt(0).toUpperCase() + size.slice(1)}
+            </Text>
+          </Pressable>
+        ))}
+      </View>
+      {/* Info veterinario */}
+      <TextInput
+        style={styles.input}
+        placeholder="Nombre del veterinario"
+        value={vetNombre}
+        onChangeText={(text) => {
+          if (soloLetras(text, "veterinario")) {
+            setVetNombre(text);
+          }
+        }}
+      />
+      <TextInput
+        style={styles.input}
+        placeholder="Contacto del veterinario"
+        value={vetContacto.toString()}
+        onChangeText={(text) => {
+          if (soloNumeros(text, "numero veterinario")) {
+            setVetContacto(Number(text));
+          }
+        }}
+      />
+      {/* Notas */}
+      <TextInput
+        style={styles.input}
+        placeholder="Notas Adicionales"
+        value={nota}
+        onChangeText={setNota}
+      />
+      <Pressable style={styles.button} onPress={handleEditMascota}>
+        <Text style={styles.textButton}>Guardar mascota</Text>
+      </Pressable>
+    </ScrollView>
   );
 }
 
