@@ -23,6 +23,7 @@ import Toast from "react-native-toast-message";
 import { useAuth } from "../../constants/AuthContext";
 import { supabase } from "../../lib/supabase";
 
+// Validaciones
 const noNulos = (texto: string): boolean => {
   return texto.trim() !== "";
 };
@@ -35,6 +36,7 @@ const soloLetras = (texto: string, nombreCampo: string): boolean => {
     return false;
   }
 };
+
 const soloNumeros = (numero: string, nombreCampo: string): boolean => {
   if (/^[0-9]*$/.test(numero)) {
     return true;
@@ -721,7 +723,7 @@ export default function HomeScreen() {
           <View style={styles.modalContent}>
             <Text style={styles.modalTitle}>Eliminar Mascota</Text>
             <Text style={styles.modalMessage}>
-              ¿Estás seguro de que deseas eliminar a {mascotaToCancel?.name}?
+              ¿Estás seguro de que quieres eliminar a {mascotaToCancel?.name}?
             </Text>
             <View style={styles.modalButtons}>
               <Pressable
