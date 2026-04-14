@@ -5,7 +5,7 @@ import {
 } from "@react-navigation/native";
 import { Stack } from "expo-router";
 import { StatusBar } from "expo-status-bar";
-import { ActivityIndicator, View } from "react-native";
+import { Image, StyleSheet, Text, View } from "react-native";
 import "react-native-reanimated";
 
 import { useColorScheme } from "@/hooks/use-color-scheme";
@@ -68,13 +68,44 @@ const toastConfig: ToastConfig = {
   ),
 };
 
+const styles = StyleSheet.create({
+  loadingContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: "#E4E6E9",
+  },
+  loadingBrandRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 16,
+  },
+  loadingLogo: {
+    width: 120,
+    height: 120,
+    resizeMode: "contain",
+  },
+  loadingTitle: {
+    fontSize: 52,
+    fontWeight: "800",
+    color: "#1F2A2E",
+    lineHeight: 52,
+  },
+});
+
 function RootNavigator() {
   const { session, loading } = useAuth();
 
   if (loading) {
     return (
-      <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
-        <ActivityIndicator size="large" />
+      <View style={styles.loadingContainer}>
+        <View style={styles.loadingBrandRow}>
+          <Image
+            source={require("../assets/logo_petlodge1.jpg")}
+            style={styles.loadingLogo}
+          />
+          <Text style={styles.loadingTitle}>Pet{"\n"}Lodge</Text>
+        </View>
       </View>
     );
   }

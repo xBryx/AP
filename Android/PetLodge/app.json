@@ -4,7 +4,7 @@
     "slug": "PetLodge",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/images/icon.png",
+    "icon": "./assets/logo_petlodge1.jpg",
     "scheme": "petlodge",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
@@ -12,11 +12,11 @@
       "supportsTablet": true
     },
     "android": {
+      "package": "com.keylorsv0312.petlodge",
       "adaptiveIcon": {
-        "backgroundColor": "#E6F4FE",
-        "foregroundImage": "./assets/images/android-icon-foreground.png",
-        "backgroundImage": "./assets/images/android-icon-background.png",
-        "monochromeImage": "./assets/images/android-icon-monochrome.png"
+        "backgroundColor": "#E4E6E9",
+        "foregroundImage": "./assets/logo_petlodge.png",
+        "monochromeImage": "./assets/logo_petlodge.png"
       },
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false
@@ -30,12 +30,12 @@
       [
         "expo-splash-screen",
         {
-          "image": "./assets/images/splash-icon.png",
-          "imageWidth": 200,
+          "image": "./assets/logo_petlodge1.jpg",
+          "imageWidth": 230,
           "resizeMode": "contain",
-          "backgroundColor": "#ffffff",
+          "backgroundColor": "#E4E6E9",
           "dark": {
-            "backgroundColor": "#000000"
+            "backgroundColor": "#E4E6E9"
           }
         }
       ]
@@ -43,6 +43,12 @@
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "55518309-bcea-4fa8-87d5-0fb62440fa7d"
+      }
     }
   }
 }
