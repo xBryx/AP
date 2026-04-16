@@ -121,6 +121,7 @@ function RootNavigator() {
       )}
       <Stack.Screen name="(auth)/register" />
       <Stack.Screen name="(auth)/forget_password" />
+      <Stack.Screen name="(auth)/change_password" />
     </Stack>
   );
 }

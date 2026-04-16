@@ -1,82 +1,88 @@
-import Entypo from "@expo/vector-icons/Entypo";
-import { useRouter } from "expo-router";
+import { Ionicons } from "@expo/vector-icons";
+import { router } from "expo-router";
 import { useState } from "react";
 import {
-  ActivityIndicator,
-  Alert,
-  Pressable,
-  StyleSheet,
-  Text,
-  TextInput,
-  View,
+    ActivityIndicator,
+    Pressable,
+    StyleSheet,
+    Text,
+    TextInput,
+    View,
 } from "react-native";
+import Toast from "react-native-toast-message";
 
 import { getAuthErrorMessage } from "../../constants/AuthErrors";
-import { useAuth } from "../../constants/AuthContext";
 import { supabase } from "../../lib/supabase";
 
 const isNotEmpty = (value: string): boolean => value.trim() !== "";
 
-export default function HomeScreen() {
-  const router = useRouter();
-  const { user } = useAuth();
-  const [actualPassword, setActualPassword] = useState("");
+export default function ChangePasswordRecoveryScreen() {
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+  const [showNew, setShowNew] = useState(false);
+  const [showConfirm, setShowConfirm] = useState(false);
   const [loading, setLoading] = useState(false);
 
   const handleConfirmar = async () => {
     if (!supabase) {
-      Alert.alert("Error", "No se encontró configuración de Supabase.");
-      return;
-    }
-
-    if (!user?.email) {
-      Alert.alert("Error", "No se encontró una sesión activa.");
-      return;
-    }
-
-    if (!isNotEmpty(actualPassword)) {
-      Alert.alert("Error", "Debes ingresar tu contraseña actual.");
+      Toast.show({
+        type: "error",
+        text1: "Error",
+        text2: "No se encontro configuracion de Supabase.",
+      });
       return;
     }
 
     if (!isNotEmpty(newPassword)) {
-      Alert.alert("Error", "Debes ingresar una nueva contraseña.");
+      Toast.show({
+        type: "error",
+        text1: "Error",
+        text2: "Debes ingresar una nueva contrasena.",
+      });
       return;
     }
 
     if (!isNotEmpty(confirmPassword)) {
-      Alert.alert("Error", "Debes confirmar tu nueva contraseña.");
+      Toast.show({
+        type: "error",
+        text1: "Error",
+        text2: "Debes confirmar tu nueva contrasena.",
+      });
       return;
     }
 
     if (newPassword.length < 6) {
-      Alert.alert("Error", "La nueva contraseña debe tener mínimo 6 caracteres.");
+      Toast.show({
+        type: "error",
+        text1: "Error",
+        text2: "La nueva contrasena debe tener minimo 6 caracteres.",
+      });
       return;
     }
 
     if (newPassword !== confirmPassword) {
-      Alert.alert("Error", "La confirmación no coincide con la nueva contraseña.");
-      return;
-    }
-
-    if (actualPassword === newPassword) {
-      Alert.alert("Error", "La nueva contraseña debe ser distinta a la actual.");
+      Toast.show({
+        type: "error",
+        text1: "Error",
+        text2: "La confirmacion no coincide con la nueva contrasena.",
+      });
       return;
     }
 
     setLoading(true);
 
-    // Reautenticación para comprobar que la contraseña actual es correcta.
-    const { error: reauthError } = await supabase.auth.signInWithPassword({
-      email: user.email,
-      password: actualPassword,
-    });
+    const {
+      data: { session },
+      error: sessionError,
+    } = await supabase.auth.getSession();
 
-    if (reauthError) {
+    if (sessionError || !session) {
       setLoading(false);
-      Alert.alert("Error", "La contraseña actual es incorrecta.");
+      Toast.show({
+        type: "error",
+        text1: "Enlace invalido",
+        text2: "Abre de nuevo el enlace de recuperacion desde tu correo.",
+      });
       return;
     }
 
@@ -87,56 +93,97 @@ export default function HomeScreen() {
     setLoading(false);
 
     if (updateError) {
-      Alert.alert("Error", getAuthErrorMessage(updateError));
+      Toast.show({
+        type: "error",
+        text1: "Error",
+        text2: getAuthErrorMessage(updateError),
+      });
       return;
     }
 
-    setActualPassword("");
     setNewPassword("");
     setConfirmPassword("");
-    Alert.alert("Éxito", "Tu contraseña se actualizó correctamente.", [
-      { text: "Aceptar", onPress: () => router.back() },
-    ]);
+
+    Toast.show({
+      type: "success",
+      text1: "Contrasena actualizada",
+      text2: "Inicia sesion con tu nueva contrasena.",
+    });
+
+    await supabase.auth.signOut();
+    router.replace("/(auth)/login");
   };
 
   return (
     <View style={styles.container}>
-      <Text style={styles.titleContainer}>Cambiar contraseña</Text>
-      <View style={styles.inputContainer}>
-        <Entypo name="lock" size={24} color="black" style={styles.icon} />
-        <TextInput
-          style={styles.input}
-          placeholder="Contraseña Actual"
-          value={actualPassword}
-          secureTextEntry
-          autoCapitalize="none"
-          onChangeText={setActualPassword}
+      <Text style={styles.titleContainer}>Nueva contraseña</Text>
+
+      <View style={styles.inputWrapper}>
+        <Ionicons
+          name="lock-closed-outline"
+          size={20}
+          color="#676767"
+          style={styles.icon}
         />
-      </View>
-      <View style={styles.inputContainer}>
-        <Entypo name="lock" size={24} color="black" style={styles.icon} />
         <TextInput
-          style={styles.input}
+          style={styles.inputInner}
           placeholder="Nueva contraseña"
+          placeholderTextColor="#676767"
           value={newPassword}
-          secureTextEntry
+          secureTextEntry={!showNew}
           autoCapitalize="none"
           onChangeText={setNewPassword}
         />
+        <Pressable
+          onPress={() => setShowNew((prev) => !prev)}
+          style={styles.eyeIcon}
+        >
+          <Ionicons
+            name={showNew ? "eye-outline" : "eye-off-outline"}
+            size={20}
+            color="#676767"
+          />
+        </Pressable>
       </View>
-      <View style={styles.inputContainer}>
-        <Entypo name="lock" size={24} color="black" style={styles.icon} />
+
+      <View style={styles.inputWrapper}>
+        <Ionicons
+          name="lock-closed-outline"
+          size={20}
+          color="#676767"
+          style={styles.icon}
+        />
         <TextInput
-          style={styles.input}
+          style={styles.inputInner}
           placeholder="Confirmar contraseña"
+          placeholderTextColor="#676767"
           value={confirmPassword}
-          secureTextEntry
+          secureTextEntry={!showConfirm}
           autoCapitalize="none"
           onChangeText={setConfirmPassword}
         />
+        <Pressable
+          onPress={() => setShowConfirm((prev) => !prev)}
+          style={styles.eyeIcon}
+        >
+          <Ionicons
+            name={showConfirm ? "eye-outline" : "eye-off-outline"}
+            size={20}
+            color="#676767"
+          />
+        </Pressable>
       </View>
 
-      <Pressable style={styles.button} onPress={handleConfirmar} disabled={loading}>
+      <Text style={styles.helpText}>
+        Este paso funciona solo si abriste el enlace desde el correo de
+        recuperacion.
+      </Text>
+
+      <Pressable
+        style={styles.button}
+        onPress={handleConfirmar}
+        disabled={loading}
+      >
         {loading ? (
           <ActivityIndicator color="#ffffff" />
         ) : (
@@ -151,55 +198,53 @@ const styles = StyleSheet.create({
   icon: {
     marginRight: 8,
   },
-  inputContainer: {
+  inputWrapper: {
     flexDirection: "row",
     alignItems: "center",
     borderWidth: 1,
-    borderColor: "#ccc",
-    borderRadius: 8,
-    paddingHorizontal: 10,
-    backgroundColor: "#f3f3f3",
+    borderColor: "#e0e0e0",
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    backgroundColor: "#f5f5f5",
     marginBottom: 12,
+    height: 56,
   },
-  input: {
+  inputInner: {
     flex: 1,
-    height: 40,
-    color: "#676767",
+    color: "#333",
+    fontSize: 16,
   },
   container: {
     flex: 1,
     backgroundColor: "#ffffff",
     justifyContent: "center",
-    padding: 20,
+    paddingHorizontal: 30,
   },
   titleContainer: {
-    color: "#37513f",
-    flexDirection: "row",
-    textAlign: "center",
-    fontSize: 30,
-    gap: 8,
+    color: "#263f2d",
+    fontSize: 40,
     fontWeight: "bold",
+    marginBottom: 40,
+    lineHeight: 48,
   },
   button: {
     backgroundColor: "#4A3717",
-    padding: 15,
+    padding: 18,
     alignItems: "center",
-    borderRadius: 5,
+    borderRadius: 8,
+    marginTop: 12,
   },
-  text: {
-    color: "#000",
-    marginBottom: 10,
-    textAlign: "center",
-    fontSize: 15,
+  eyeIcon: {
+    padding: 10,
+  },
+  helpText: {
+    color: "#676767",
+    marginBottom: 8,
+    fontSize: 14,
   },
   textButton: {
     color: "#ffffff",
-    fontSize: 20,
-  },
-  textLink: {
-    color: "#4e6e58",
-    marginBottom: 10,
-    fontSize: 15,
-    textAlign: "center",
+    fontSize: 18,
+    fontWeight: "600",
   },
 });

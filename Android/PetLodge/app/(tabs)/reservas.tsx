@@ -3,14 +3,14 @@ import { compareAsc, compareDesc, format, parse } from "date-fns";
 import { useLocalSearchParams } from "expo-router";
 import { useCallback, useEffect, useState } from "react";
 import {
-  ActivityIndicator,
-  FlatList,
-  Modal,
-  Pressable,
-  RefreshControl,
-  StyleSheet,
-  Text,
-  View,
+    ActivityIndicator,
+    FlatList,
+    Modal,
+    Pressable,
+    RefreshControl,
+    StyleSheet,
+    Text,
+    View,
 } from "react-native";
 import { Calendar, LocaleConfig } from "react-native-calendars";
 import { Dropdown } from "react-native-element-dropdown";
@@ -296,6 +296,7 @@ export default function HomeScreen() {
         .from("pet")
         .select("id, name")
         .eq("user_id", session.user.id)
+        .eq("active", true)
         .order("name", { ascending: true });
 
       if (!petsByUserId.error && petsByUserId.data) {
@@ -305,6 +306,7 @@ export default function HomeScreen() {
           .from("pet")
           .select("id, name")
           .eq("auth_id", session.user.id)
+          .eq("active", true)
           .order("name", { ascending: true });
 
         if (!petsByAuthId.error && petsByAuthId.data) {
@@ -315,14 +317,14 @@ export default function HomeScreen() {
       if (petsData.length === 0) {
         const petsFromReservations = await supabase
           .from("reservation")
-          .select("pet(id, name)")
+          .select("pet(id, name, active)")
           .eq("user_id", session.user.id);
 
         if (!petsFromReservations.error && petsFromReservations.data) {
           const uniquePets = new Map<string, Pet>();
           (petsFromReservations.data as any[]).forEach((row) => {
             const p = row.pet;
-            if (p?.id && !uniquePets.has(p.id)) {
+            if (p?.id && p.active === true && !uniquePets.has(p.id)) {
               uniquePets.set(p.id, {
                 id: p.id,
                 name: p.name,
