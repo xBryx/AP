@@ -88,6 +88,21 @@ const getImageContentType = (extension: string) => {
   return `image/${extension}`;
 };
 
+const getPetMutationErrorMessage = (error: any) => {
+  const message = String(error?.message || "").toLowerCase();
+  const code = String(error?.code || "");
+
+  if (
+    code === "42501" ||
+    message.includes("row-level security") ||
+    message.includes("violates row-level security")
+  ) {
+    return "No se puede eliminar la mascota porque tiene reservas en estado Pendiente, Aceptada o Activa.";
+  }
+
+  return error?.message || "Ocurrio un error inesperado.";
+};
+
 const MascotaCard = ({
   item,
   handleEdit,
@@ -440,7 +455,7 @@ export default function HomeScreen() {
         Toast.show({
           type: "error",
           text1: "Error",
-          text2: error.message,
+          text2: getPetMutationErrorMessage(error),
         });
       } else {
         Toast.show({
